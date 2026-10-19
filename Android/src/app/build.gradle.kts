@@ -35,7 +35,7 @@ android {
   defaultConfig {
     applicationId = "com.vlad.offlinetranslator"
     minSdk = 31
-    targetSdk = 37
+    targetSdk = 36
     versionCode = 46
     versionName = "1.0.20"
 
@@ -49,6 +49,13 @@ android {
     buildConfigField("String", "FEEDBACK_API_KEY", "\"\"")
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+  }
+
+  signingConfigs {
+    getByName("debug") {
+      enableV1Signing = true
+      enableV2Signing = true
+    }
   }
 
   buildTypes {
