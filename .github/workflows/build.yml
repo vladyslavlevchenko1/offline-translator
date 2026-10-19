@@ -5,6 +5,9 @@ on:
   push:
     branches: [ "main" ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,3 +29,10 @@ jobs:
         with:
           name: offline-translator-apk
           path: Android/src/app/build/outputs/apk/release/*.apk
+      - name: Publish APK as release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Offline Translator build ${{ github.run_number }}
+          files: Android/src/app/build/outputs/apk/release/*.apk
+          make_latest: true
