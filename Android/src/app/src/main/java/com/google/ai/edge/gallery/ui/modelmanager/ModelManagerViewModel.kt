@@ -201,6 +201,7 @@ private val RESET_CONVERSATION_TURN_COUNT_CONFIG =
   )
 private val PREDEFINED_LLM_TASK_ORDER =
   listOf(
+    com.google.ai.edge.gallery.customtasks.translator.TRANSLATOR_TASK_ID,
     BuiltInTaskId.SMART_ALBUM,
     BuiltInTaskId.VIDEO_MOMENT_FINDER,
     BuiltInTaskId.LLM_CHAT,
@@ -1379,6 +1380,12 @@ constructor(
             if (taskType == BuiltInTaskId.LLM_TEST) continue
             val task = curTasks.find { it.id == taskType }
             task?.models?.add(model)
+            if (taskType == BuiltInTaskId.LLM_ASK_AUDIO) {
+              curTasks
+                .find { it.id == com.google.ai.edge.gallery.customtasks.translator.TRANSLATOR_TASK_ID }
+                ?.models
+                ?.let { if (model !in it) it.add(model) }
+            }
 
             if (task?.id == BuiltInTaskId.LLM_TINY_GARDEN) {
               val newConfigs = model.configs.toMutableList()
