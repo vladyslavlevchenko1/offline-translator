@@ -1,0 +1,528 @@
+/*
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.ai.edge.gallery.common
+
+import android.content.Context
+import android.content.res.AssetFileDescriptor
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.ParcelFileDescriptor
+import android.util.Log
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.focus.onFocusEvent
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.core.net.toUri
+import androidx.exifinterface.media.ExifInterface
+import com.google.ai.edge.gallery.GalleryEvent
+import com.google.ai.edge.gallery.data.SAMPLE_RATE
+import com.google.ai.edge.gallery.firebaseAnalytics
+import com.google.gson.Gson
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.io.OutputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.channels.FileChannel
+import kotlin.math.abs
+import kotlin.math.floor
+import kotlin.math.max
+import kotlin.math.roundToInt
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+
+private const val TAG = "AGUtils"
+
+const val LOCAL_URL_BASE = "https://appassets.androidplatform.net"
+
+/**
+ * Parser for [convertStringToJsonObject].
+ *
+ * Lenient because the Gson `JsonParser.parseString` this replaced parsed in lenient mode, and the
+ * input is model-written, so unquoted keys and values are common and used to be accepted. The
+ * default [Json] rejects them.
+ *
+ * This is not full parity: kotlinx leniency has no notion of single-quoted strings, so `{'a':'b'}`
+ * yields the key `'a'` rather than `a`. There is no [Json] option for that.
+ */
+private val lenientJson = Json { isLenient = true }
+
+fun cleanUpMediapipeTaskErrorMessage(message: String): String {
+  val index = message.indexOf("=== Source Location Trace")
+  if (index >= 0) {
+    return message.substring(0, index)
+  }
+  return message
+}
+
+fun processLlmResponse(response: String): String {
+  return response.replace("\\n", "\n")
+}
+
+inline fun <reified T> getJsonResponse(url: String): JsonObjAndTextContent<T>? {
+  try {
+    val connection = URL(url).openConnection() as HttpURLConnection
+    connection.requestMethod = "GET"
+    connection.connect()
+
+    val responseCode = connection.responseCode
+    if (responseCode == HttpURLConnection.HTTP_OK) {
+      val inputStream = connection.inputStream
+      val response = inputStream.bufferedReader().use { it.readText() }
+
+      val jsonObj = parseJson<T>(response)
+      return if (jsonObj != null) {
+        JsonObjAndTextContent(jsonObj = jsonObj, textContent = response)
+      } else {
+        null
+      }
+    } else {
+      Log.e("AGUtils", "HTTP error: $responseCode")
+    }
+  } catch (e: Exception) {
+    Log.e("AGUtils", "Error when getting or parsing json response", e)
+  }
+
+  return null
+}
+
+/** Parses a JSON string into an object of type [T] using Gson. */
+inline fun <reified T> parseJson(response: String): T? {
+  return try {
+    val gson = Gson()
+    gson.fromJson(response, T::class.java)
+  } catch (e: Exception) {
+    Log.e("AGUtils", "Error parsing JSON string", e)
+    null
+  }
+}
+
+fun convertWavToMonoWithMaxSeconds(
+  context: Context,
+  stereoUri: Uri,
+  maxSeconds: Int = 30,
+): AudioClip? {
+  Log.d(TAG, "Start to convert wav file to mono channel")
+
+  try {
+    val originalBytes =
+      openSafeInputStream(context, stereoUri)?.use { it.readBytes() } ?: return null
+
+    // Read WAV header
+    if (originalBytes.size < 44) {
+      // Not a valid WAV file
+      Log.e(TAG, "Not a valid wav file")
+      return null
+    }
+
+    val headerBuffer = ByteBuffer.wrap(originalBytes, 0, 44).order(ByteOrder.LITTLE_ENDIAN)
+    val channels = headerBuffer.getShort(22)
+    var sampleRate = headerBuffer.getInt(24)
+    val bitDepth = headerBuffer.getShort(34)
+    Log.d(TAG, "File metadata: channels: $channels, sampleRate: $sampleRate, bitDepth: $bitDepth")
+
+    // Normalize audio to 16-bit.
+    val audioDataBytes = originalBytes.copyOfRange(fromIndex = 44, toIndex = originalBytes.size)
+    var sixteenBitBytes: ByteArray =
+      if (bitDepth.toInt() == 8) {
+        Log.d(TAG, "Converting 8-bit audio to 16-bit.")
+        convert8BitTo16Bit(audioDataBytes)
+      } else {
+        // Assume 16-bit or other format that can be handled directly
+        audioDataBytes
+      }
+
+    // Convert byte array to short array for processing
+    val shortBuffer =
+      ByteBuffer.wrap(sixteenBitBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+    var pcmSamples = ShortArray(shortBuffer.remaining())
+    shortBuffer.get(pcmSamples)
+
+    // Resample if sample rate is less than 16000 Hz ---
+    if (sampleRate < SAMPLE_RATE) {
+      Log.d(TAG, "Resampling from $sampleRate Hz to $SAMPLE_RATE Hz.")
+      pcmSamples = resample(pcmSamples, sampleRate, SAMPLE_RATE, channels.toInt())
+      sampleRate = SAMPLE_RATE
+      Log.d(TAG, "Resampling complete. New sample count: ${pcmSamples.size}")
+    }
+
+    // Convert stereo to mono if necessary
+    var monoSamples =
+      if (channels.toInt() == 2) {
+        Log.d(TAG, "Converting stereo to mono.")
+        val mono = ShortArray(pcmSamples.size / 2)
+        for (i in mono.indices) {
+          val left = pcmSamples[i * 2]
+          val right = pcmSamples[i * 2 + 1]
+          mono[i] = ((left + right) / 2).toShort()
+        }
+        mono
+      } else {
+        Log.d(TAG, "Audio is already mono. No channel conversion needed.")
+        pcmSamples
+      }
+
+    // Trim the audio to maxSeconds ---
+    val maxSamples = maxSeconds * sampleRate
+    if (monoSamples.size > maxSamples) {
+      Log.d(TAG, "Trimming clip from ${monoSamples.size} samples to $maxSamples samples.")
+      monoSamples = monoSamples.copyOfRange(0, maxSamples)
+    }
+
+    val monoByteBuffer = ByteBuffer.allocate(monoSamples.size * 2).order(ByteOrder.LITTLE_ENDIAN)
+    monoByteBuffer.asShortBuffer().put(monoSamples)
+    return AudioClip(audioData = monoByteBuffer.array(), sampleRate = sampleRate)
+  } catch (e: Exception) {
+    Log.e(TAG, "Failed to convert wav to mono", e)
+    return null
+  }
+}
+
+/** Converts 8-bit unsigned PCM audio data to 16-bit signed PCM. */
+private fun convert8BitTo16Bit(eightBitData: ByteArray): ByteArray {
+  // The new 16-bit data will be twice the size
+  val sixteenBitData = ByteArray(eightBitData.size * 2)
+  val buffer = ByteBuffer.wrap(sixteenBitData).order(ByteOrder.LITTLE_ENDIAN)
+
+  for (byte in eightBitData) {
+    // Convert the unsigned 8-bit byte (0-255) to a signed 16-bit short (-32768 to 32767)
+    // 1. Get the unsigned value by masking with 0xFF
+    // 2. Subtract 128 to center the waveform around 0 (range becomes -128 to 127)
+    // 3. Scale by 256 to expand to the 16-bit range
+    val unsignedByte = byte.toInt() and 0xFF
+    val sixteenBitSample = ((unsignedByte - 128) * 256).toShort()
+    buffer.putShort(sixteenBitSample)
+  }
+  return sixteenBitData
+}
+
+/** Resamples PCM audio data from an original sample rate to a target sample rate. */
+private fun resample(
+  inputSamples: ShortArray,
+  originalSampleRate: Int,
+  targetSampleRate: Int,
+  channels: Int,
+): ShortArray {
+  if (originalSampleRate == targetSampleRate) {
+    return inputSamples
+  }
+
+  val ratio = targetSampleRate.toDouble() / originalSampleRate
+  val outputLength = (inputSamples.size * ratio).toInt()
+  val resampledData = ShortArray(outputLength)
+
+  if (channels == 1) { // Mono
+    for (i in resampledData.indices) {
+      val position = i / ratio
+      val index1 = floor(position).toInt()
+      val index2 = index1 + 1
+      val fraction = position - index1
+
+      val sample1 = if (index1 < inputSamples.size) inputSamples[index1].toDouble() else 0.0
+      val sample2 = if (index2 < inputSamples.size) inputSamples[index2].toDouble() else 0.0
+
+      resampledData[i] = (sample1 * (1 - fraction) + sample2 * fraction).toInt().toShort()
+    }
+  }
+
+  return resampledData
+}
+
+fun calculatePeakAmplitude(buffer: ByteArray, bytesRead: Int): Int {
+  // Wrap the byte array in a ByteBuffer and set the order to little-endian
+  val shortBuffer =
+    ByteBuffer.wrap(buffer, 0, bytesRead).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+
+  var maxAmplitude = 0
+  // Iterate through the short buffer to find the maximum absolute value
+  while (shortBuffer.hasRemaining()) {
+    val currentSample = abs(shortBuffer.get().toInt())
+    if (currentSample > maxAmplitude) {
+      maxAmplitude = currentSample
+    }
+  }
+  return maxAmplitude
+}
+
+fun openSafeInputStream(context: Context, uri: Uri): InputStream? {
+  return try {
+    if (uri.scheme == null || uri.scheme == "file") {
+      val path = uri.path?.takeIf { it.isNotEmpty() } ?: return null
+      return FileInputStream(File(path))
+    }
+    context.contentResolver.openInputStream(uri)
+  } catch (e: Exception) {
+    Log.e(TAG, "Failed to open input stream for URI: $uri", e)
+    null
+  }
+}
+
+fun openSafeOutputStream(context: Context, uri: Uri): OutputStream? {
+  return try {
+    if (uri.scheme == null || uri.scheme == "file") {
+      val path = uri.path?.takeIf { it.isNotEmpty() } ?: return null
+      return FileOutputStream(File(path))
+    }
+    context.contentResolver.openOutputStream(uri)
+  } catch (e: Exception) {
+    Log.e(TAG, "Failed to open output stream for URI: $uri", e)
+    null
+  }
+}
+
+fun openSafeAssetFileDescriptor(
+  context: Context,
+  uri: Uri,
+  mode: String = "r",
+): AssetFileDescriptor? {
+  return try {
+    if (uri.scheme == null || uri.scheme == "file") {
+      val path = uri.path?.takeIf { it.isNotEmpty() } ?: return null
+      val pfd = ParcelFileDescriptor.open(File(path), ParcelFileDescriptor.parseMode(mode))
+      return AssetFileDescriptor(pfd, 0, AssetFileDescriptor.UNKNOWN_LENGTH)
+    }
+    context.contentResolver.openAssetFileDescriptor(uri, mode)
+  } catch (e: Exception) {
+    Log.e(TAG, "Failed to open asset file descriptor for URI: $uri", e)
+    null
+  }
+}
+
+fun decodeSampledBitmapFromUri(context: Context, uri: Uri, reqWidth: Int, reqHeight: Int): Bitmap? {
+  // First, decode with inJustDecodeBounds=true to check dimensions
+  val options =
+    BitmapFactory.Options().apply {
+      inJustDecodeBounds = true
+      openSafeInputStream(context, uri)?.use { BitmapFactory.decodeStream(it, null, this) }
+
+      // Calculate inSampleSize
+      inSampleSize = calculateInSampleSize(this, reqWidth, reqHeight)
+
+      // Decode bitmap with inSampleSize set
+      inJustDecodeBounds = false
+    }
+
+  return openSafeInputStream(context, uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+}
+
+fun rotateBitmap(bitmap: Bitmap, orientation: Int): Bitmap {
+  val matrix = Matrix()
+  when (orientation) {
+    ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+    ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+    ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+    ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.preScale(-1.0f, 1.0f)
+    ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.preScale(1.0f, -1.0f)
+    ExifInterface.ORIENTATION_TRANSPOSE -> {
+      matrix.postRotate(90f)
+      matrix.preScale(-1.0f, 1.0f)
+    }
+    ExifInterface.ORIENTATION_TRANSVERSE -> {
+      matrix.postRotate(270f)
+      matrix.preScale(-1.0f, 1.0f)
+    }
+    ExifInterface.ORIENTATION_NORMAL -> return bitmap
+    else -> return bitmap
+  }
+  return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+}
+
+private fun calculateInSampleSize(
+  options: BitmapFactory.Options,
+  reqWidth: Int,
+  reqHeight: Int,
+): Int {
+  // Raw height and width of image
+  val height: Int = options.outHeight
+  val width: Int = options.outWidth
+  var inSampleSize = 1
+
+  if (height > reqHeight || width > reqWidth) {
+    // Calculate the ratio of height and width to the requested height and width
+    val heightRatio = (height.toFloat() / reqHeight.toFloat()).roundToInt()
+    val widthRatio = (width.toFloat() / reqWidth.toFloat()).roundToInt()
+
+    // Choose the largest ratio as inSampleSize value to ensure
+    // that both dimensions are smaller than or equal to the requested dimensions.
+    inSampleSize = max(heightRatio, widthRatio)
+  }
+
+  return inSampleSize
+}
+
+fun readFileToByteBuffer(file: File): ByteBuffer? {
+  return try {
+    val fileInputStream = FileInputStream(file)
+    val fileChannel: FileChannel = fileInputStream.channel
+    val byteBuffer = ByteBuffer.allocateDirect(fileChannel.size().toInt())
+    fileChannel.read(byteBuffer)
+    byteBuffer.rewind()
+    fileInputStream.close()
+    byteBuffer
+  } catch (e: Exception) {
+    e.printStackTrace()
+    null
+  }
+}
+
+fun isPixel10(): Boolean {
+  return Build.MODEL != null && Build.MODEL.lowercase().contains("pixel 10")
+}
+
+fun isPixel11(): Boolean {
+  return Build.MODEL != null && Build.MODEL.lowercase().contains("pixel 11")
+}
+
+/**
+ * Returns the base directory for storing models. On Pixel 11 with "CD1A" builds, internal app
+ * storage (filesDir) is used to avoid FUSE filesystem DMA mapping issues.
+ */
+fun getModelStorageDir(context: Context): File {
+  val isCd1aBuild = Build.ID != null && Build.ID.startsWith("CD1A")
+  return if (isPixel11() && isCd1aBuild) {
+    context.filesDir
+  } else {
+    context.getExternalFilesDir(null) ?: context.filesDir
+  }
+}
+
+fun isPixelDevice(): Boolean {
+  return Build.MODEL != null && Build.MODEL.lowercase().contains("pixel")
+}
+
+fun Modifier.clearFocusOnKeyboardDismiss(): Modifier = composed {
+  var isFocused by remember { mutableStateOf(false) }
+  var keyboardAppearedSinceLastFocused by remember { mutableStateOf(false) }
+
+  if (isFocused) {
+    val imeIsVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(imeIsVisible) {
+      if (imeIsVisible) {
+        keyboardAppearedSinceLastFocused = true
+      } else if (keyboardAppearedSinceLastFocused) {
+        focusManager.clearFocus()
+      }
+    }
+  }
+
+  onFocusEvent {
+    if (isFocused != it.isFocused) {
+      isFocused = it.isFocused
+      if (isFocused) keyboardAppearedSinceLastFocused = false
+    }
+  }
+}
+
+fun isAICoreSupported(allowedDeviceModels: Set<String>?): Boolean {
+  if (allowedDeviceModels.isNullOrEmpty()) {
+    Log.w(TAG, "isAICoreSupported: allowedDeviceModels is null or empty")
+    return false
+  }
+  val currentModel = android.os.Build.MODEL?.lowercase()
+  if (currentModel == null) {
+    Log.w(TAG, "isAICoreSupported: current device model is null")
+    return false
+  }
+  val supported = allowedDeviceModels.contains(currentModel)
+  if (!supported) {
+    Log.w(
+      TAG,
+      "isAICoreSupported: device model '$currentModel' is not in the allowed list: $allowedDeviceModels",
+    )
+  }
+  return supported
+}
+
+fun logErrorToFirebase(event: GalleryEvent, errorType: String, errorMessage: String?) {
+  firebaseAnalytics?.logEvent(
+    event.id,
+    Bundle().apply {
+      putBoolean("success", false)
+      putString("error_type", errorType)
+      putString("error_message", errorMessage ?: "Unknown error")
+    },
+  )
+}
+
+/**
+ * Reports a button press to Firebase as a [GalleryEvent.BUTTON_CLICKED] event.
+ *
+ * [eventType] identifies the button and must be unique per button, so that two different buttons
+ * are never distinguished by their parameters alone. Pass [buttonId] only for a single button that
+ * carries a value, such as one segment of a segmented button. Use [extras] to report any further
+ * parameters describing the press; it cannot overwrite the two keys above, which are always written
+ * last.
+ */
+fun logButtonClick(eventType: String, buttonId: String? = null, extras: Bundle.() -> Unit = {}) {
+  firebaseAnalytics?.logEvent(
+    GalleryEvent.BUTTON_CLICKED.id,
+    Bundle().apply {
+      extras()
+      putString("event_type", eventType)
+      buttonId?.let { putString("button_id", it) }
+    },
+  )
+}
+
+fun convertStringToJsonObject(jsonString: String): JsonObject {
+  return try {
+    lenientJson.parseToJsonElement(jsonString).jsonObject
+  } catch (e: Exception) {
+    Log.w(TAG, "Could not parse JSON string; using an empty object", e)
+    JsonObject(emptyMap())
+  }
+}
+
+/**
+ * Listener for virtual-device permission request results dispatched via
+ * `Activity.requestPermissions`.
+ */
+@Suppress("KotlinArray")
+fun interface PermissionsResultListener {
+  fun onPermissionsResult(
+    requestCode: Int,
+    permissions: Array<out String>,
+    grantResults: IntArray,
+    deviceId: Int,
+  )
+}
+
+/** Host activity interface for observing virtual-device permission results. */
+interface VirtualDevicePermissionsHost {
+  fun registerPermissionsResultListener(listener: PermissionsResultListener)
+
+  fun unregisterPermissionsResultListener(listener: PermissionsResultListener)
+}
