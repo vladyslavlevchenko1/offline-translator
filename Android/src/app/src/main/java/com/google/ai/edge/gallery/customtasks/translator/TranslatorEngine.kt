@@ -28,7 +28,12 @@ private const val WORK_CONTEXT =
     "bolts, beams, safety helmets, gloves)."
 
 /** Builds the instruction sent together with the audio clip (or typed text). */
-fun buildPrompt(direction: Direction, target: TargetLang, typedText: String? = null): String {
+fun buildPrompt(
+  direction: Direction,
+  target: TargetLang,
+  typedText: String? = null,
+  glossary: String = "",
+): String {
   val (srcName, srcCode, dstName, dstCode) =
     when (direction) {
       Direction.ME_TO_THEM -> listOf("Russian", "RU", target.englishName, target.code)
@@ -37,9 +42,16 @@ fun buildPrompt(direction: Direction, target: TargetLang, typedText: String? = n
   val input =
     if (typedText == null) "The audio is $srcName speech. It may be messy, with filler words and repetitions."
     else "Here is $srcName text to translate:\n\"\"\"\n$typedText\n\"\"\""
+  val terms =
+    glossary.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
+  val glossaryBlock =
+    if (terms.isEmpty()) ""
+    else
+      "\nGlossary from the user (Russian term = what it really means here). Always follow it:\n" +
+        terms.joinToString("\n") { "- $it" }
   return """
 You are a professional interpreter. $input
-$WORK_CONTEXT
+$WORK_CONTEXT$glossaryBlock
 Reply with exactly two lines and nothing else:
 $srcCode: <what was said, in $srcName>
 $dstCode: <natural translation into $dstName>
@@ -171,4 +183,29 @@ fun pcmToWav(pcm: ByteArray, sampleRate: Int): ByteArray {
   "data".forEachIndexed { i, c -> header[36 + i] = c.code.toByte() }
   putInt(40, pcm.size)
   return header + pcm
+}
+
+const val DEFAULT_GLOSSARY =
+  """# Мой словарь. Одна строка = один термин: слово = что оно значит.
+# Строки с # не учитываются.
+бейдж = карта доступа (access card), не значок
+стеллаж = складской стеллаж (storage rack), не полка
+стойка = вертикальная стойка стеллажа (upright)
+камера = камера видеонаблюдения (CCTV camera), не фотоаппарат
+ребята = коллеги
+серверная = серверная комната
+"""
+
+private const val PREFS = "offline_translator"
+private const val KEY_GLOSSARY = "glossary"
+
+fun loadGlossary(context: android.content.Context): String =
+  context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+    .getString(KEY_GLOSSARY, null) ?: DEFAULT_GLOSSARY
+
+fun saveGlossary(context: android.content.Context, text: String) {
+  context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+    .edit()
+    .putString(KEY_GLOSSARY, text)
+    .apply()
 }

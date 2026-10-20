@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,6 +47,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -103,6 +105,8 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
   var typed by remember { mutableStateOf("") }
   val history = remember { mutableStateListOf<HistoryItem>() }
   val recorder = remember { MicRecorder() }
+  var glossary by remember { mutableStateOf(loadGlossary(context)) }
+  var showGlossary by remember { mutableStateOf(false) }
 
   // Text-to-speech (uses the phone's installed voices; works offline if voices are downloaded).
   var ttsReady by remember { mutableStateOf(false) }
@@ -200,7 +204,7 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
       if (elapsedMs < 500) {
         Toast.makeText(context, "Слишком коротко", Toast.LENGTH_SHORT).show()
       } else {
-        runTranslation(buildPrompt(direction, target), wav)
+        runTranslation(buildPrompt(direction, target, glossary = glossary), wav)
       }
     }
   }
@@ -225,6 +229,47 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
     } else {
       permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
+  }
+
+  if (showGlossary) {
+    var draft by remember { mutableStateOf(glossary) }
+    AlertDialog(
+      onDismissRequest = { showGlossary = false },
+      title = { Text("Мой словарь") },
+      text = {
+        Column {
+          Text(
+            "Одна строка — один термин: слово = что оно значит. Переводчик всегда будет так понимать эти слова.",
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+          Spacer(Modifier.height(8.dp))
+          OutlinedTextField(
+            value = draft,
+            onValueChange = { draft = it },
+            modifier = Modifier.fillMaxWidth().height(320.dp),
+          )
+        }
+      },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            glossary = draft
+            saveGlossary(context, draft)
+            showGlossary = false
+            Toast.makeText(context, "Словарь сохранён", Toast.LENGTH_SHORT).show()
+          }
+        ) {
+          Text("Сохранить")
+        }
+      },
+      dismissButton = {
+        Row {
+          TextButton(onClick = { draft = DEFAULT_GLOSSARY }) { Text("Сброс") }
+          TextButton(onClick = { showGlossary = false }) { Text("Отмена") }
+        }
+      },
+    )
   }
 
   Column(modifier = Modifier.fillMaxSize().padding(bottom = bottomPadding).padding(horizontal = 16.dp)) {
@@ -254,6 +299,8 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
       for (lang in TargetLang.entries) {
         FilterChip(selected = target == lang, onClick = { target = lang }, label = { Text(lang.label) })
       }
+      Spacer(Modifier.weight(1f))
+      TextButton(onClick = { showGlossary = true }) { Text("Словарь") }
     }
 
     // History.
@@ -295,7 +342,7 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
         onClick = {
           val text = typed.trim()
           typed = ""
-          runTranslation(buildPrompt(direction, target, typedText = text), null)
+          runTranslation(buildPrompt(direction, target, typedText = text, glossary = glossary), null)
         },
       ) {
         Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = "Перевести")

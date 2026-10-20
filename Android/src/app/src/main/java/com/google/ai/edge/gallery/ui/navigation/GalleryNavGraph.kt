@@ -180,6 +180,33 @@ fun GalleryNavHost(
     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
   }
 
+  // Offline Translator: open the translator screen right away on app start.
+  var autoOpenedTranslator by remember { mutableStateOf(false) }
+  LaunchedEffect(modelManagerUiState.loadingModelAllowlist, modelManagerUiState.tasks.size) {
+    if (autoOpenedTranslator || modelManagerUiState.loadingModelAllowlist) return@LaunchedEffect
+    if (!tosViewModel.getIsTosAccepted()) return@LaunchedEffect
+    val translatorTask =
+      modelManagerUiState.tasks.find {
+        it.id == com.google.ai.edge.gallery.customtasks.translator.TRANSLATOR_TASK_ID
+      } ?: return@LaunchedEffect
+    autoOpenedTranslator = true
+    pickedTask = translatorTask
+    enableModelListAnimation = false
+    navController.navigate(ROUTE_MODEL_LIST)
+    val downloaded =
+      translatorTask.models
+        .filter {
+          modelManagerUiState.modelDownloadStatus[it.name]?.status ==
+            ModelDownloadStatusType.SUCCEEDED
+        }
+        .sortedByDescending { it.name.contains("E4B", ignoreCase = true) }
+        .firstOrNull()
+    if (downloaded != null) {
+      modelManagerViewModel.selectModel(downloaded)
+      navController.navigate("$ROUTE_MODEL/${translatorTask.id}/${downloaded.name}")
+    }
+  }
+
   NavHost(
     navController = navController,
     startDestination = ROUTE_HOMESCREEN,
