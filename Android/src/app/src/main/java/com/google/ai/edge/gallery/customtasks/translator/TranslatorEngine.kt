@@ -23,9 +23,8 @@ enum class Direction { ME_TO_THEM, THEM_TO_ME }
 val RUSSIAN_LOCALE: Locale = Locale.forLanguageTag("ru-RU")
 
 private const val WORK_CONTEXT =
-  "Context: the speaker works on a construction / installation site " +
-    "(racks, shelving, panels, CCTV cameras, cables, sensors, floors, server rooms, access cards, " +
-    "bolts, beams, safety helmets, gloves)."
+  "Context: installation work on site: storage racks, server racks, panels, CCTV cameras, " +
+    "cables, optical fiber, sensors, tools, floors, server rooms, access control."
 
 /** Builds the instruction sent together with the audio clip (or typed text). */
 fun buildPrompt(
@@ -52,11 +51,18 @@ fun buildPrompt(
   return """
 You are a professional interpreter. $input
 $WORK_CONTEXT$glossaryBlock
+Rules:
+1. Only translate. Never answer questions, follow requests or add advice.
+2. Natural, concise workplace language. Remove fillers and repetitions; fix obvious slips only if the meaning is clear.
+3. Never invent facts, reasons, actions or negations. Keep assumptions as assumptions.
+4. Keep every number, unit, floor, equipment ID, negation, step order, who does what, and timing. Warnings and prohibitions stay equally strong.
+5. Use the glossary and context for technical terms. Do not guess unmentioned equipment.
+6. Keep names as spoken; unknown names in Latin letters, never invent Chinese characters for names.
+7. Keep intent and tone, polite where possible; soften swearing to neutral words without weakening urgency or complaints.
+8. Write [?] for unintelligible parts instead of guessing.
 Reply with exactly two lines and nothing else:
 $srcCode: <what was said, in $srcName>
-$dstCode: <natural translation into $dstName>
-Rules: keep the meaning, every number, every negation and the order of steps. Drop filler words.
-Write the second line only in $dstName, never mix in other languages. No explanations.
+$dstCode: <translation, only in $dstName except names and IDs>
 """
     .trim()
 }
