@@ -84,6 +84,7 @@ data class HistoryItem(
   val source: String,
   val translation: String,
   val seconds: Float,
+  val formatOk: Boolean = true,
 )
 
 @Composable
@@ -139,14 +140,18 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
     tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "tr_${item.id}")
   }
 
-  fun runTranslation(prompt: String, audio: ByteArray?) {
-    val dir = direction
-    val tgt = target
+  fun runTranslation(
+    prompt: String,
+    audio: ByteArray?,
+    dir: Direction = direction,
+    tgt: TargetLang = target,
+  ) {
     busy = true
     streaming = ""
     val start = System.currentTimeMillis()
     var buffer = ""
     scope.launch(Dispatchers.Default) {
+      try {
       model.runtimeHelper.runInference(
         model = model,
         input = prompt,
@@ -166,6 +171,7 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
                   source = r.source,
                   translation = r.translation,
                   seconds = (System.currentTimeMillis() - start) / 1000f,
+                  formatOk = r.formatOk,
                 ),
               )
               streaming = ""
@@ -185,26 +191,44 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
         coroutineScope = scope,
         extraContext = mapOf(EPHEMERAL_KEY to "true"),
       )
+      } catch (e: Exception) {
+        scope.launch(Dispatchers.Main) {
+          busy = false
+          streaming = ""
+          Toast.makeText(context, "Ошибка модели: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+      }
     }
   }
 
   fun startRecording() {
     recording = true
     elapsedMs = 0L
+    val dirAtStart = direction
+    val tgtAtStart = target
+    val promptAtStart = buildPrompt(dirAtStart, tgtAtStart, glossary = glossary)
     scope.launch {
-      withContext(Dispatchers.IO) {
-        recorder.recordBlocking(
-          onLevel = { level = it },
-          onElapsed = { elapsedMs = it },
-        )
-      }
+      val error =
+        withContext(Dispatchers.IO) {
+          try {
+            recorder.recordBlocking(
+              onLevel = { level = it },
+              onElapsed = { elapsedMs = it },
+            )
+            null
+          } catch (e: Exception) {
+            e.message ?: "ошибка микрофона"
+          }
+        }
       recording = false
       level = 0f
       val wav = recorder.takeWav()
-      if (elapsedMs < 500) {
+      if (error != null) {
+        Toast.makeText(context, "Не удалось записать: $error", Toast.LENGTH_LONG).show()
+      } else if (elapsedMs < 500) {
         Toast.makeText(context, "Слишком коротко", Toast.LENGTH_SHORT).show()
       } else {
-        runTranslation(buildPrompt(direction, target, glossary = glossary), wav)
+        runTranslation(promptAtStart, wav, dirAtStart, tgtAtStart)
       }
     }
   }
@@ -278,6 +302,7 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
       SegmentedButton(
         selected = direction == Direction.ME_TO_THEM,
         onClick = { direction = Direction.ME_TO_THEM },
+        enabled = !recording && !busy,
         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
       ) {
         Text("Я → ${target.label}")
@@ -285,6 +310,7 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
       SegmentedButton(
         selected = direction == Direction.THEM_TO_ME,
         onClick = { direction = Direction.THEM_TO_ME },
+        enabled = !recording && !busy,
         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
       ) {
         Text("${target.label} → Я")
@@ -297,7 +323,12 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
       horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
       for (lang in TargetLang.entries) {
-        FilterChip(selected = target == lang, onClick = { target = lang }, label = { Text(lang.label) })
+        FilterChip(
+          selected = target == lang,
+          onClick = { target = lang },
+          enabled = !recording && !busy,
+          label = { Text(lang.label) },
+        )
       }
       Spacer(Modifier.weight(1f))
       TextButton(onClick = { showGlossary = true }) { Text("Словарь") }
@@ -407,6 +438,13 @@ private fun HistoryCard(item: HistoryItem, onSpeak: () -> Unit) {
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(6.dp))
+      }
+      if (!item.formatOk) {
+        Text(
+          "⚠ Модель ответила не по формату — проверь перевод",
+          fontSize = 12.sp,
+          color = MaterialTheme.colorScheme.error,
+        )
       }
       Text("$dstLabel: ${item.translation}", fontSize = 20.sp, fontWeight = FontWeight.Medium)
       Row(verticalAlignment = Alignment.CenterVertically) {

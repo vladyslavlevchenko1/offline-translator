@@ -46,7 +46,7 @@ fun buildPrompt(
   val glossaryBlock =
     if (terms.isEmpty()) ""
     else
-      "\nGlossary from the user (Russian term = what it really means here). Always follow it:\n" +
+      "\nGlossary from the user (Russian term = meaning). Apply an entry whenever the speech uses that term in that sense:\n" +
         terms.joinToString("\n") { "- $it" }
   return """
 You are a professional interpreter. $input
@@ -67,7 +67,7 @@ $dstCode: <translation, only in $dstName except names and IDs>
     .trim()
 }
 
-data class TranslationResult(val source: String, val translation: String)
+data class TranslationResult(val source: String, val translation: String, val formatOk: Boolean = true)
 
 /** Splits the model reply "XX: ...\nYY: ..." into source and translation. */
 fun parseReply(reply: String, direction: Direction, target: TargetLang): TranslationResult {
@@ -85,7 +85,9 @@ fun parseReply(reply: String, direction: Direction, target: TargetLang): Transla
       translation.isNotEmpty() && line.isNotEmpty() -> translation += " $line"
     }
   }
-  if (translation.isEmpty()) translation = reply.trim()
+  if (translation.isEmpty()) {
+    return TranslationResult(source = source, translation = reply.trim(), formatOk = false)
+  }
   return TranslationResult(source = source, translation = translation)
 }
 
@@ -117,6 +119,10 @@ class MicRecorder {
         AudioFormat.ENCODING_PCM_16BIT,
         minBuf * 2,
       )
+    if (rec.state != AudioRecord.STATE_INITIALIZED) {
+      rec.release()
+      throw IllegalStateException("Микрофон занят или недоступен")
+    }
     stream.reset()
     recorder = rec
     val buffer = ByteArray(minBuf)
@@ -196,7 +202,8 @@ const val DEFAULT_GLOSSARY =
 # Строки с # не учитываются.
 бейдж = карта доступа (access card), не значок
 стеллаж = складской стеллаж (storage rack), не полка
-стойка = вертикальная стойка стеллажа (upright)
+стойка стеллажа = вертикальная стойка складского стеллажа (upright)
+серверная стойка = серверный шкаф 19" (server rack)
 камера = камера видеонаблюдения (CCTV camera), не фотоаппарат
 ребята = коллеги
 серверная = серверная комната
