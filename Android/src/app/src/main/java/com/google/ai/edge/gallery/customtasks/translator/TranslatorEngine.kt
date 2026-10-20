@@ -67,6 +67,28 @@ $dstCode: <translation, only in $dstName except names and IDs>
     .trim()
 }
 
+/** Prompt for "review first" mode: only transcribe, no translation. */
+fun buildTranscribePrompt(direction: Direction, target: TargetLang): String {
+  val srcName = if (direction == Direction.ME_TO_THEM) "Russian" else target.englishName
+  return """
+Transcribe this $srcName speech as text in $srcName.
+Remove filler words and stutters (like "ну", "типа", "короче", "э-э"), keep everything else exactly as said.
+Do not translate, do not answer, do not add anything. Output only the transcript.
+"""
+    .trim()
+}
+
+/** Cleans the transcript reply (drops "RU:" labels and quotes). */
+fun cleanTranscript(reply: String): String =
+  reply
+    .lines()
+    .map { it.trim().replace(Regex("^[A-Z]{2}:\\s*"), "") }
+    .filter { it.isNotEmpty() }
+    .joinToString(" ")
+    .trim()
+    .trim('"', '«', '»')
+    .trim()
+
 data class TranslationResult(val source: String, val translation: String, val formatOk: Boolean = true)
 
 /** Splits the model reply "XX: ...\nYY: ..." into source and translation. */
@@ -220,5 +242,18 @@ fun saveGlossary(context: android.content.Context, text: String) {
   context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
     .edit()
     .putString(KEY_GLOSSARY, text)
+    .apply()
+}
+
+private const val KEY_REVIEW = "review_before_translate"
+
+fun loadReviewMode(context: android.content.Context): Boolean =
+  context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+    .getBoolean(KEY_REVIEW, true)
+
+fun saveReviewMode(context: android.content.Context, value: Boolean) {
+  context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+    .edit()
+    .putBoolean(KEY_REVIEW, value)
     .apply()
 }

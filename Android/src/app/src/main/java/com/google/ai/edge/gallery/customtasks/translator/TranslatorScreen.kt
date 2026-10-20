@@ -46,6 +46,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -108,6 +109,8 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
   val recorder = remember { MicRecorder() }
   var glossary by remember { mutableStateOf(loadGlossary(context)) }
   var showGlossary by remember { mutableStateOf(false) }
+  var reviewMode by remember { mutableStateOf(loadReviewMode(context)) }
+  var busyLabel by remember { mutableStateOf("Перевожу…") }
 
   // Text-to-speech (uses the phone's installed voices; works offline if voices are downloaded).
   var ttsReady by remember { mutableStateOf(false) }
@@ -147,6 +150,7 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
     tgt: TargetLang = target,
   ) {
     busy = true
+    busyLabel = "Перевожу…"
     streaming = ""
     val start = System.currentTimeMillis()
     var buffer = ""
@@ -201,12 +205,63 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
     }
   }
 
+  fun runTranscription(prompt: String, audio: ByteArray) {
+    busy = true
+    busyLabel = "Распознаю…"
+    streaming = ""
+    var buffer = ""
+    scope.launch(Dispatchers.Default) {
+      try {
+        model.runtimeHelper.runInference(
+          model = model,
+          input = prompt,
+          resultListener = { partial, done, _ ->
+            buffer += partial
+            val snapshot = buffer
+            scope.launch(Dispatchers.Main) {
+              streaming = snapshot
+              if (done) {
+                val text = cleanTranscript(snapshot)
+                typed = if (typed.isBlank()) text else typed.trimEnd() + " " + text
+                streaming = ""
+                busy = false
+                if (text.isEmpty()) {
+                  Toast.makeText(context, "Ничего не распознано", Toast.LENGTH_SHORT).show()
+                }
+              }
+            }
+          },
+          cleanUpListener = { scope.launch(Dispatchers.Main) { busy = false } },
+          onError = { msg ->
+            scope.launch(Dispatchers.Main) {
+              busy = false
+              streaming = ""
+              Toast.makeText(context, "Ошибка: $msg", Toast.LENGTH_LONG).show()
+            }
+          },
+          audioClips = listOf(audio),
+          coroutineScope = scope,
+          extraContext = mapOf(EPHEMERAL_KEY to "true"),
+        )
+      } catch (e: Exception) {
+        scope.launch(Dispatchers.Main) {
+          busy = false
+          streaming = ""
+          Toast.makeText(context, "Ошибка модели: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+      }
+    }
+  }
+
   fun startRecording() {
     recording = true
     elapsedMs = 0L
     val dirAtStart = direction
     val tgtAtStart = target
-    val promptAtStart = buildPrompt(dirAtStart, tgtAtStart, glossary = glossary)
+    val reviewAtStart = reviewMode
+    val promptAtStart =
+      if (reviewAtStart) buildTranscribePrompt(dirAtStart, tgtAtStart)
+      else buildPrompt(dirAtStart, tgtAtStart, glossary = glossary)
     scope.launch {
       val error =
         withContext(Dispatchers.IO) {
@@ -228,7 +283,8 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
       } else if (elapsedMs < 500) {
         Toast.makeText(context, "Слишком коротко", Toast.LENGTH_SHORT).show()
       } else {
-        runTranslation(promptAtStart, wav, dirAtStart, tgtAtStart)
+        if (reviewAtStart) runTranscription(promptAtStart, wav)
+        else runTranslation(promptAtStart, wav, dirAtStart, tgtAtStart)
       }
     }
   }
@@ -349,7 +405,7 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
       if (history.isEmpty() && !busy) {
         item(key = "empty") {
           Text(
-            if (ready) "Нажми на микрофон, скажи фразу и нажми ещё раз. До 30 секунд."
+            if (ready) "Нажми на микрофон, скажи фразу и нажми ещё раз. До 30 секунд. Можно записать несколько кусков подряд — текст допишется."
             else "Сначала загрузи модель (вверху выбери Gemma 4 E4B или E2B).",
             modifier = Modifier.padding(vertical = 24.dp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -359,14 +415,36 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
       items(history, key = { it.id }) { item -> HistoryCard(item, onSpeak = { speak(item.translation, item) }) }
     }
 
+    // Review-before-translate toggle.
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+    ) {
+      Text(
+        "Проверять текст перед переводом",
+        fontSize = 14.sp,
+        modifier = Modifier.weight(1f),
+      )
+      Switch(
+        checked = reviewMode,
+        onCheckedChange = {
+          reviewMode = it
+          saveReviewMode(context, it)
+        },
+        enabled = !recording && !busy,
+      )
+    }
+
     // Typed input.
     Row(verticalAlignment = Alignment.CenterVertically) {
       OutlinedTextField(
         value = typed,
         onValueChange = { typed = it },
         modifier = Modifier.weight(1f),
-        placeholder = { Text("Или напиши текст…") },
-        maxLines = 3,
+        placeholder = {
+          Text(if (reviewMode) "Скажи в микрофон — текст появится тут, поправь и жми ➤" else "Или напиши текст…")
+        },
+        maxLines = 5,
       )
       IconButton(
         enabled = ready && !busy && !recording && typed.isNotBlank(),
@@ -386,7 +464,7 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
           CircularProgressIndicator(modifier = Modifier.size(56.dp))
           Spacer(Modifier.height(6.dp))
-          Text("Перевожу…")
+          Text(busyLabel)
         }
       } else {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
