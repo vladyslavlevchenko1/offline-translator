@@ -36,7 +36,7 @@ android {
     applicationId = "com.vlad.offlinetranslator"
     minSdk = 31
     targetSdk = 36
-    versionCode = 46
+    versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0) + 100
     versionName = "1.0.20"
 
     // Needed for HuggingFace auth workflows.
@@ -52,7 +52,11 @@ android {
   }
 
   signingConfigs {
-    getByName("debug") {
+    create("fixed") {
+      storeFile = file("keystore/release.jks")
+      storePassword = "translator123"
+      keyAlias = "translator"
+      keyPassword = "translator123"
       enableV1Signing = true
       enableV2Signing = true
     }
@@ -62,7 +66,7 @@ android {
     release {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("debug")
+      signingConfig = signingConfigs.getByName("fixed")
     }
   }
   compileOptions {
