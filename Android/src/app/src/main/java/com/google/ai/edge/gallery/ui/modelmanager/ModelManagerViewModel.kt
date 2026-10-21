@@ -1293,7 +1293,9 @@ constructor(
 
         if (modelAllowlist == null) {
           // Load from github.
-          var version = BuildConfig.VERSION_NAME.replace(".", "_")
+          // Offline Translator: our versionName is "1.0.<build>", but the model list must stay
+          // pinned to the Gallery 1.0.20 allowlist so already-downloaded models are reused.
+          var version = "1_0_20"
           val url = getAllowlistUrl(version)
           Log.d(TAG, "Loading model allowlist from internet. Url: $url")
           val data = getJsonResponse<ModelAllowlist>(url = url)
