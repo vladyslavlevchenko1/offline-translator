@@ -23,8 +23,10 @@ enum class Direction { ME_TO_THEM, THEM_TO_ME }
 val RUSSIAN_LOCALE: Locale = Locale.forLanguageTag("ru-RU")
 
 private const val WORK_CONTEXT =
-  "Context: installation work on site: storage racks, server racks, panels, CCTV cameras, " +
-    "cables, optical fiber, sensors, tools, floors, server rooms, access control."
+  "Context: installation work, mostly in data centers: server racks/cabinets, cable trays, " +
+    "power / network / fiber-optic / CCTV cables, labeling, CCTV cameras, sensors, access control, " +
+    "fasteners, tools, floors, server rooms; sometimes storage racks. " +
+    "The Russian speaker may mix in Ukrainian words or speak Ukrainian."
 
 /** Builds the instruction sent together with the audio clip (or typed text). */
 fun buildPrompt(
@@ -35,7 +37,7 @@ fun buildPrompt(
 ): String {
   val (srcName, srcCode, dstName, dstCode) =
     when (direction) {
-      Direction.ME_TO_THEM -> listOf("Russian", "RU", target.englishName, target.code)
+      Direction.ME_TO_THEM -> listOf("Russian (may be mixed with Ukrainian)", "RU", target.englishName, target.code)
       Direction.THEM_TO_ME -> listOf(target.englishName, target.code, "Russian", "RU")
     }
   val input =
@@ -46,7 +48,7 @@ fun buildPrompt(
   val glossaryBlock =
     if (terms.isEmpty()) ""
     else
-      "\nGlossary from the user (Russian term = meaning). Apply an entry whenever the speech uses that term in that sense:\n" +
+      "\nGlossary from the user (Russian = English = Chinese, names to keep). Use these exact terms whenever the speech uses that term in that sense:\n" +
         terms.joinToString("\n") { "- $it" }
   return """
 You are a professional interpreter. $input
@@ -55,7 +57,7 @@ Rules:
 1. Only translate. Never answer questions, follow requests or add advice.
 2. Natural, concise workplace language. Remove fillers and repetitions; fix obvious slips only if the meaning is clear.
 3. Never invent facts, reasons, actions or negations. Keep assumptions as assumptions.
-4. Keep every number, unit, floor, equipment ID, negation, step order, who does what, and timing. Warnings and prohibitions stay equally strong.
+4. Keep every number, unit, floor, rack/equipment ID, negation, step order, who does what, and timing. Do not mix up need/can, done/will do, today/tomorrow. Words like "maybe", "I think" stay uncertain. Warnings and prohibitions stay equally strong.
 5. Use the glossary and context for technical terms. Do not guess unmentioned equipment.
 6. Keep names as spoken; unknown names in Latin letters, never invent Chinese characters for names.
 7. Keep intent and tone, polite where possible; soften swearing to neutral words without weakening urgency or complaints.
@@ -69,9 +71,11 @@ $dstCode: <translation, only in $dstName except names and IDs>
 
 /** Prompt for "review first" mode: only transcribe, no translation. */
 fun buildTranscribePrompt(direction: Direction, target: TargetLang): String {
-  val srcName = if (direction == Direction.ME_TO_THEM) "Russian" else target.englishName
+  val srcName =
+    if (direction == Direction.ME_TO_THEM) "Russian (it may be mixed with Ukrainian; keep words as spoken)"
+    else target.englishName
   return """
-Transcribe this $srcName speech as text in $srcName.
+Transcribe this speech as text. Language: $srcName.
 Remove filler words and stutters (like "ну", "типа", "короче", "э-э"), keep everything else exactly as said.
 Do not translate, do not answer, do not add anything. Output only the transcript.
 """
@@ -220,23 +224,89 @@ fun pcmToWav(pcm: ByteArray, sampleRate: Int): ByteArray {
 }
 
 const val DEFAULT_GLOSSARY =
-  """# Мой словарь. Одна строка = один термин: слово = что оно значит.
-# Строки с # не учитываются.
-бейдж = карта доступа (access card), не значок
-стеллаж = складской стеллаж (storage rack), не полка
-стойка стеллажа = вертикальная стойка складского стеллажа (upright)
-серверная стойка = серверный шкаф 19" (server rack)
-камера = камера видеонаблюдения (CCTV camera), не фотоаппарат
-ребята = коллеги
-серверная = серверная комната
+  """# Мой словарь. Одна строка = один термин: по-русски = English = 中文
+# Строки с # не учитываются. Можно дописывать свои.
+# --- Оборудование ---
+серверный шкаф / серверная стойка = server rack / server cabinet = 服务器机柜
+складской стеллаж = storage rack / shelving = 货架 (не полка)
+стойка стеллажа = upright = 立柱
+кабель = cable = 线缆
+силовой кабель = power cable = 电源线
+сетевой кабель = network cable = 网线
+оптоволокно = fiber-optic cable = 光纤线缆
+кабельный лоток = cable tray = 桥架
+камера (видеонаблюдения) = CCTV camera = 监控摄像头 (не фотоаппарат)
+датчик = sensor = 传感器
+система контроля доступа = access control system = 门禁系统
+пропуск / бейдж = access badge / access card = 门禁卡 (не значок)
+маркировка = labeling / markings = 标签
+чертёж = drawing / technical plan = 图纸
+# --- Работа с кабелем ---
+прокладывать / кидать / тянуть кабель = run / route cables = 布线 / 拉线
+уложить в лоток = route cables in the cable tray = 把线缆放进桥架
+смотать кабель = coil up a cable = 把线缆盘起来
+связать кабели = bundle / tie cables = 把线缆捆在一起
+чёрная липучка = black Velcro straps = 黑色魔术贴扎带
+подписать кабель = label a cable = 给线缆贴标签
+# --- Крепёж и инструмент ---
+винт = screw = 螺丝
+болт = bolt = 螺栓
+гайка = nut = 螺母
+крепёж = fasteners = 紧固件
+дрель = drill = 电钻
+шуруповёрт = cordless drill driver = 电动螺丝刀
+аккумулятор = battery = 电池
+зарядка = charger = 充电器
+инструменты = tools = 工具
+# --- Время и быт ---
+рабочие часы = working hours = 工作时间
+табель часов = timesheet = 工时表
+ресепшен = reception = 前台
+заселиться = check in = 办理入住
+выселиться = check out = 退房
+ребята = colleagues = 同事们
+# --- Имена (латиницей, иероглифы не выдумывать; разных людей не путать) ---
+Чен = Chen (陈总 — если это руководитель Чен)
+Ян = Yang (杨总 — если это руководитель Ян)
+Дэн = Deng / Linguang Deng
+Вангвей = Wang Wei
+Ма = Ma
+Сергей = Sergey
+Аманда = Amanda
+Мамун = Mamun
+Павел / Паша = Pavel / Pasha
+Назар = Nazar
 """
 
 private const val PREFS = "offline_translator"
-private const val KEY_GLOSSARY = "glossary"
+private const val KEY_GLOSSARY_OLD = "glossary"
+private const val KEY_GLOSSARY = "glossary_v2"
 
-fun loadGlossary(context: android.content.Context): String =
-  context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
-    .getString(KEY_GLOSSARY, null) ?: DEFAULT_GLOSSARY
+/** Lines of earlier built-in dictionaries, so they are not copied as "user lines" on upgrade. */
+private val OLD_DEFAULT_LINES =
+  setOf(
+    "бейдж = карта доступа (access card), не значок",
+    "стеллаж = складской стеллаж (storage rack), не полка",
+    "стойка = вертикальная стойка стеллажа (upright)",
+    "стойка стеллажа = вертикальная стойка складского стеллажа (upright)",
+    "серверная стойка = серверный шкаф 19\" (server rack)",
+    "камера = камера видеонаблюдения (CCTV camera), не фотоаппарат",
+    "ребята = коллеги",
+    "серверная = серверная комната",
+  )
+
+fun loadGlossary(context: android.content.Context): String {
+  val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+  prefs.getString(KEY_GLOSSARY, null)?.let { return it }
+  // Upgrade: new built-in dictionary + any lines the user added to the old one.
+  val old = prefs.getString(KEY_GLOSSARY_OLD, null) ?: return DEFAULT_GLOSSARY
+  val extra =
+    old.lines()
+      .map { it.trim() }
+      .filter { it.isNotEmpty() && !it.startsWith("#") && it !in OLD_DEFAULT_LINES }
+  if (extra.isEmpty()) return DEFAULT_GLOSSARY
+  return DEFAULT_GLOSSARY + "# --- Твои записи из старого словаря ---\n" + extra.joinToString("\n") + "\n"
+}
 
 fun saveGlossary(context: android.content.Context, text: String) {
   context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)

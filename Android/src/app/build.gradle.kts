@@ -37,7 +37,7 @@ android {
     minSdk = 31
     targetSdk = 36
     versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0) + 100
-    versionName = "1.0.20"
+    versionName = "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: "dev")
 
     // Needed for HuggingFace auth workflows.
     // Use the scheme of the "Redirect URLs" in HuggingFace app.

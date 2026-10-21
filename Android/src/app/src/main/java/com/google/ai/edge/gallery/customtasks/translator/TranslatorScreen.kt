@@ -15,6 +15,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -88,6 +92,7 @@ data class HistoryItem(
   val formatOk: Boolean = true,
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding: Dp) {
   val context = LocalContext.current
@@ -319,7 +324,7 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
       text = {
         Column {
           Text(
-            "Одна строка — один термин: слово = что оно значит. Переводчик всегда будет так понимать эти слова.",
+            "Одна строка — один термин: по-русски = English = 中文. Переводчик будет использовать именно эти слова.",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
@@ -352,7 +357,14 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
     )
   }
 
-  Column(modifier = Modifier.fillMaxSize().padding(bottom = bottomPadding).padding(horizontal = 16.dp)) {
+  val imeVisible = WindowInsets.isImeVisible
+  Column(
+    modifier =
+      Modifier.fillMaxSize()
+        .padding(bottom = if (imeVisible) 0.dp else bottomPadding)
+        .imePadding()
+        .padding(horizontal = 16.dp)
+  ) {
     // Direction selector.
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
       SegmentedButton(
@@ -458,7 +470,8 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
       }
     }
 
-    // Mic button.
+    // Mic button (hidden while the keyboard is open, to give the text field room).
+    if (!imeVisible || busy || recording)
     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
       if (busy) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
