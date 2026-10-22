@@ -3,7 +3,7 @@ name: Build APK
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev/**" ]
     paths-ignore:
       - '**.md'
 
@@ -22,19 +22,54 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-      - name: Install Android SDK Platform 37
-        run: echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-37.0"
+      - name: Install Android SDK Platform 37 and CMake
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-37.0" "cmake;3.22.1"
+          echo "Installed NDKs:"; ls $ANDROID_HOME/ndk || true
       - name: Build
-        run: ./gradlew assembleRelease --no-daemon
+        id: build
+        run: |
+          set -o pipefail
+          ./gradlew assembleRelease --no-daemon 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
+      - name: Check native library is inside the APK
+        run: unzip -l app/build/outputs/apk/release/*.apk | grep -E "lib/arm64-v8a/libwhisper_jni.so"
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: offline-translator-apk
           path: Android/src/app/build/outputs/apk/release/*.apk
       - name: Publish APK as release
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: Offline Translator build ${{ github.run_number }}
           files: Android/src/app/build/outputs/apk/release/*.apk
           make_latest: true
+      # Build status + log tail go to the "ci-logs" branch, so they can be read without logging in.
+      - name: Save build log
+        if: always()
+        working-directory: .
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          N=${{ github.run_number }}
+          mkdir -p /tmp/ci && cd /tmp/ci
+          git init -q
+          git remote add origin "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git"
+          if git fetch -q --depth 1 origin ci-logs; then git checkout -q -b ci-logs FETCH_HEAD; else git checkout -q --orphan ci-logs; fi
+          {
+            echo "run: $N"
+            echo "ref: ${{ github.ref_name }}"
+            echo "sha: ${{ github.sha }}"
+            echo "build: ${{ steps.build.outcome }}"
+            echo "job: ${{ job.status }}"
+          } > "status-$N.txt"
+          cp "status-$N.txt" latest-status.txt
+          if [ -f "$GITHUB_WORKSPACE/build.log" ]; then
+            grep -nE "error:|e: |FAILURE|What went wrong|CMake Error|BUILD (SUCCESSFUL|FAILED)" "$GITHUB_WORKSPACE/build.log" | head -200 > "errors-$N.txt" || true
+            tail -c 150000 "$GITHUB_WORKSPACE/build.log" > "build-$N.log"
+          fi
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "build $N (${{ github.ref_name }}): ${{ steps.build.outcome }}"
+          git push -q origin ci-logs || true

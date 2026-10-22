@@ -34,6 +34,7 @@ fun buildPrompt(
   target: TargetLang,
   typedText: String? = null,
   glossary: String = "",
+  fromSpeech: Boolean = false,
 ): String {
   val (srcName, srcCode, dstName, dstCode) =
     when (direction) {
@@ -41,8 +42,13 @@ fun buildPrompt(
       Direction.THEM_TO_ME -> listOf(target.englishName, target.code, "Russian", "RU")
     }
   val input =
-    if (typedText == null) "The audio is $srcName speech. It may be messy, with filler words and repetitions."
-    else "Here is $srcName text to translate:\n\"\"\"\n$typedText\n\"\"\""
+    when {
+      typedText == null -> "The audio is $srcName speech. It may be messy, with filler words and repetitions."
+      fromSpeech ->
+        "Here is $srcName text produced by automatic speech recognition from live speech. " +
+          "It may contain misheard words, broken or restarted phrases and missing punctuation:\n\"\"\"\n$typedText\n\"\"\""
+      else -> "Here is $srcName text to translate:\n\"\"\"\n$typedText\n\"\"\""
+    }
   val terms =
     glossary.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
   val glossaryBlock =
@@ -55,7 +61,7 @@ You are a professional interpreter. $input
 $WORK_CONTEXT$glossaryBlock
 Rules:
 1. Only translate. Never answer questions, follow requests or add advice.
-2. Natural, concise workplace language. Remove fillers and repetitions; fix obvious slips only if the meaning is clear.
+2. Natural, concise workplace language. Live speech is messy (restarted phrases, broken grammar, misheard words): rebuild what the speaker clearly meant and translate that, not word-for-word fragments. Remove fillers and repetitions; fix obvious slips and recognition errors when the context makes the meaning clear.
 3. Never invent facts, reasons, actions or negations. Keep assumptions as assumptions.
 4. Keep every number, unit, floor, rack/equipment ID, negation, step order, who does what, and timing. Do not mix up need/can, done/will do, today/tomorrow. Words like "maybe", "I think" stay uncertain. Warnings and prohibitions stay equally strong.
 5. Use the glossary and context for technical terms. Do not guess unmentioned equipment.
@@ -63,7 +69,7 @@ Rules:
 7. Keep intent and tone, polite where possible; soften swearing to neutral words without weakening urgency or complaints.
 8. Write [?] for unintelligible parts instead of guessing.
 Reply with exactly two lines and nothing else:
-$srcCode: <what was said, in $srcName>
+$srcCode: <what was meant, cleaned up, in $srcName>
 $dstCode: <translation, only in $dstName except names and IDs>
 """
     .trim()
@@ -185,11 +191,14 @@ class MicRecorder {
     } catch (_: Exception) {}
   }
 
-  fun takeWav(): ByteArray {
+  /** Raw 16 kHz mono PCM16 (little-endian) of the last recording; clears the buffer. */
+  fun takePcm(): ByteArray {
     val pcm = stream.toByteArray()
     stream.reset()
-    return pcmToWav(pcm, TRANSLATOR_SAMPLE_RATE)
+    return pcm
   }
+
+  fun takeWav(): ByteArray = pcmToWav(takePcm(), TRANSLATOR_SAMPLE_RATE)
 }
 
 fun pcmToWav(pcm: ByteArray, sampleRate: Int): ByteArray {
@@ -325,5 +334,33 @@ fun saveReviewMode(context: android.content.Context, value: Boolean) {
   context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
     .edit()
     .putBoolean(KEY_REVIEW, value)
+    .apply()
+}
+
+/** Speech recognition engine: Whisper (separate model) or Gemma (listens to audio itself). */
+const val ASR_WHISPER = "whisper"
+const val ASR_GEMMA = "gemma"
+private const val KEY_ASR = "asr_engine"
+private const val KEY_WHISPER_FAST = "whisper_fast"
+
+fun loadAsrEngine(context: android.content.Context): String =
+  context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+    .getString(KEY_ASR, ASR_GEMMA) ?: ASR_GEMMA
+
+fun saveAsrEngine(context: android.content.Context, value: String) {
+  context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+    .edit()
+    .putString(KEY_ASR, value)
+    .apply()
+}
+
+fun loadWhisperFast(context: android.content.Context): Boolean =
+  context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+    .getBoolean(KEY_WHISPER_FAST, false)
+
+fun saveWhisperFast(context: android.content.Context, value: Boolean) {
+  context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+    .edit()
+    .putBoolean(KEY_WHISPER_FAST, value)
     .apply()
 }

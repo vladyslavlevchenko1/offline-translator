@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -45,6 +46,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -55,6 +57,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -68,6 +71,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -76,6 +80,7 @@ import androidx.core.content.ContextCompat
 import com.google.ai.edge.gallery.data.Model
 import com.google.ai.edge.gallery.runtime.runtimeHelper
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManagerViewModel
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -90,6 +95,8 @@ data class HistoryItem(
   val translation: String,
   val seconds: Float,
   val formatOk: Boolean = true,
+  /** Whisper recognition time, if Whisper was used. */
+  val asrSeconds: Float? = null,
 )
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -116,6 +123,47 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
   var showGlossary by remember { mutableStateOf(false) }
   var reviewMode by remember { mutableStateOf(loadReviewMode(context)) }
   var busyLabel by remember { mutableStateOf("Перевожу…") }
+
+  // Speech recognition: Whisper (separate model) or Gemma (listens itself).
+  var asrEngine by remember { mutableStateOf(loadAsrEngine(context)) }
+  var whisperFast by remember { mutableStateOf(loadWhisperFast(context)) }
+  var whisperReady by remember { mutableStateOf(WhisperModel.isReady(context)) }
+  var showWhisper by remember { mutableStateOf(false) }
+  var fieldFromSpeech by remember { mutableStateOf(false) }
+  val dlState by WhisperDownloader.state.collectAsState()
+  val useWhisper = asrEngine == ASR_WHISPER && whisperReady
+
+  LaunchedEffect(dlState) {
+    val st = dlState
+    if (st is WhisperDownloadState.Done) {
+      whisperReady = WhisperModel.isReady(context)
+      if (whisperReady) {
+        asrEngine = ASR_WHISPER
+        saveAsrEngine(context, ASR_WHISPER)
+        Toast.makeText(context, "Whisper скачан и включён ✓", Toast.LENGTH_LONG).show()
+      }
+      WhisperDownloader.acknowledge()
+    }
+  }
+  // Load Whisper in the background so the first phrase doesn't wait for it.
+  LaunchedEffect(useWhisper) {
+    if (useWhisper && !WhisperEngine.isLoaded) {
+      try {
+        WhisperEngine.preload(context)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Throwable) {
+        Toast.makeText(context, "Whisper: ${e.message}", Toast.LENGTH_LONG).show()
+      }
+    }
+  }
+  // Keep the screen on while the model downloads.
+  val view = LocalView.current
+  val downloading = dlState is WhisperDownloadState.Running
+  DisposableEffect(downloading) {
+    view.keepScreenOn = downloading
+    onDispose { view.keepScreenOn = false }
+  }
 
   // Text-to-speech (uses the phone's installed voices; works offline if voices are downloaded).
   var ttsReady by remember { mutableStateOf(false) }
@@ -153,6 +201,7 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
     audio: ByteArray?,
     dir: Direction = direction,
     tgt: TargetLang = target,
+    asrSeconds: Float? = null,
   ) {
     busy = true
     busyLabel = "Перевожу…"
@@ -181,6 +230,7 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
                   translation = r.translation,
                   seconds = (System.currentTimeMillis() - start) / 1000f,
                   formatOk = r.formatOk,
+                  asrSeconds = asrSeconds,
                 ),
               )
               streaming = ""
@@ -228,6 +278,7 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
               if (done) {
                 val text = cleanTranscript(snapshot)
                 typed = if (typed.isBlank()) text else typed.trimEnd() + " " + text
+                if (text.isNotEmpty()) fieldFromSpeech = true
                 streaming = ""
                 busy = false
                 if (text.isEmpty()) {
@@ -258,12 +309,62 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
     }
   }
 
+  /** Whisper path: speech -> text (Whisper), then text -> translation (Gemma). */
+  fun runWhisper(pcm: ByteArray, dir: Direction, tgt: TargetLang, review: Boolean) {
+    busy = true
+    busyLabel = "Распознаю (Whisper)…"
+    streaming = ""
+    scope.launch {
+      val result =
+        try {
+          WhisperEngine.transcribe(
+            context = context,
+            pcm16 = pcm,
+            language = whisperLanguage(dir, tgt),
+            prompt = whisperPrompt(dir, tgt, glossary),
+            fast = whisperFast,
+          )
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Throwable) {
+          busy = false
+          Toast.makeText(context, "Whisper: ${e.message}", Toast.LENGTH_LONG).show()
+          return@launch
+        }
+      if (result.text.isBlank()) {
+        busy = false
+        Toast.makeText(context, "Ничего не распознано", Toast.LENGTH_SHORT).show()
+        return@launch
+      }
+      if (review) {
+        typed = if (typed.isBlank()) result.text else typed.trimEnd() + " " + result.text
+        fieldFromSpeech = true
+        busy = false
+        Toast.makeText(
+            context,
+            String.format(java.util.Locale.US, "Whisper: %.1f с", result.seconds),
+            Toast.LENGTH_SHORT,
+          )
+          .show()
+      } else {
+        runTranslation(
+          buildPrompt(dir, tgt, typedText = result.text, glossary = glossary, fromSpeech = true),
+          null,
+          dir,
+          tgt,
+          asrSeconds = result.seconds,
+        )
+      }
+    }
+  }
+
   fun startRecording() {
     recording = true
     elapsedMs = 0L
     val dirAtStart = direction
     val tgtAtStart = target
     val reviewAtStart = reviewMode
+    val whisperAtStart = useWhisper
     val promptAtStart =
       if (reviewAtStart) buildTranscribePrompt(dirAtStart, tgtAtStart)
       else buildPrompt(dirAtStart, tgtAtStart, glossary = glossary)
@@ -282,12 +383,15 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
         }
       recording = false
       level = 0f
-      val wav = recorder.takeWav()
+      val pcm = recorder.takePcm()
       if (error != null) {
         Toast.makeText(context, "Не удалось записать: $error", Toast.LENGTH_LONG).show()
       } else if (elapsedMs < 500) {
         Toast.makeText(context, "Слишком коротко", Toast.LENGTH_SHORT).show()
+      } else if (whisperAtStart) {
+        runWhisper(pcm, dirAtStart, tgtAtStart, reviewAtStart)
       } else {
+        val wav = pcmToWav(pcm, TRANSLATOR_SAMPLE_RATE)
         if (reviewAtStart) runTranscription(promptAtStart, wav)
         else runTranslation(promptAtStart, wav, dirAtStart, tgtAtStart)
       }
@@ -314,6 +418,28 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
     } else {
       permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
+  }
+
+  if (showWhisper) {
+    WhisperDialog(
+      state = dlState,
+      ready = whisperReady,
+      partialBytes = WhisperModel.partialBytes(context),
+      fast = whisperFast,
+      onFastChange = {
+        whisperFast = it
+        saveWhisperFast(context, it)
+      },
+      onDownload = { WhisperDownloader.start(context) },
+      onStop = { WhisperDownloader.stop() },
+      onDelete = {
+        WhisperDownloader.delete(context)
+        whisperReady = false
+        asrEngine = ASR_GEMMA
+        saveAsrEngine(context, ASR_GEMMA)
+      },
+      onDismiss = { showWhisper = false },
+    )
   }
 
   if (showGlossary) {
@@ -447,6 +573,49 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
       )
     }
 
+    // Speech recognition engine.
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+      Text("Распознавание:", fontSize = 14.sp)
+      Spacer(Modifier.size(8.dp))
+      val st = dlState
+      FilterChip(
+        selected = useWhisper,
+        onClick = {
+          if (whisperReady) {
+            asrEngine = ASR_WHISPER
+            saveAsrEngine(context, ASR_WHISPER)
+          } else {
+            showWhisper = true
+          }
+        },
+        enabled = !recording && !busy,
+        label = {
+          Text(
+            when {
+              st is WhisperDownloadState.Running && st.totalBytes > 0 ->
+                "Whisper ${(st.doneBytes * 100 / st.totalBytes).coerceIn(0, 100)}%"
+              !whisperReady -> "Whisper ⬇"
+              else -> "Whisper"
+            }
+          )
+        },
+      )
+      Spacer(Modifier.size(8.dp))
+      FilterChip(
+        selected = !useWhisper,
+        onClick = {
+          asrEngine = ASR_GEMMA
+          saveAsrEngine(context, ASR_GEMMA)
+        },
+        enabled = !recording && !busy,
+        label = { Text("Gemma") },
+      )
+      Spacer(Modifier.weight(1f))
+      IconButton(onClick = { showWhisper = true }) {
+        Icon(Icons.Outlined.Settings, contentDescription = "Настройки Whisper")
+      }
+    }
+
     // Typed input.
     Row(verticalAlignment = Alignment.CenterVertically) {
       OutlinedTextField(
@@ -462,8 +631,13 @@ fun TranslatorScreen(modelManagerViewModel: ModelManagerViewModel, bottomPadding
         enabled = ready && !busy && !recording && typed.isNotBlank(),
         onClick = {
           val text = typed.trim()
+          val fromSpeech = fieldFromSpeech
           typed = ""
-          runTranslation(buildPrompt(direction, target, typedText = text, glossary = glossary), null)
+          fieldFromSpeech = false
+          runTranslation(
+            buildPrompt(direction, target, typedText = text, glossary = glossary, fromSpeech = fromSpeech),
+            null,
+          )
         },
       ) {
         Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = "Перевести")
@@ -540,7 +714,9 @@ private fun HistoryCard(item: HistoryItem, onSpeak: () -> Unit) {
       Text("$dstLabel: ${item.translation}", fontSize = 20.sp, fontWeight = FontWeight.Medium)
       Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-          String.format(java.util.Locale.US, "%.1f с", item.seconds),
+          if (item.asrSeconds != null)
+            String.format(java.util.Locale.US, "Whisper %.1f с + перевод %.1f с", item.asrSeconds, item.seconds)
+          else String.format(java.util.Locale.US, "%.1f с", item.seconds),
           fontSize = 12.sp,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -560,4 +736,94 @@ private fun HistoryCard(item: HistoryItem, onSpeak: () -> Unit) {
       }
     }
   }
+}
+
+@Composable
+private fun WhisperDialog(
+  state: WhisperDownloadState,
+  ready: Boolean,
+  partialBytes: Long,
+  fast: Boolean,
+  onFastChange: (Boolean) -> Unit,
+  onDownload: () -> Unit,
+  onStop: () -> Unit,
+  onDelete: () -> Unit,
+  onDismiss: () -> Unit,
+) {
+  var confirmDelete by remember { mutableStateOf(false) }
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text("Распознавание Whisper") },
+    text = {
+      Column {
+        Text(
+          "Отдельная модель только для распознавания речи: русский (и суржик), 中文, English, Deutsch. " +
+            "Слушает Whisper, переводит Gemma. Скачивается один раз (~${WhisperModel.APPROX_MB} МБ), дальше работает без интернета.",
+          fontSize = 13.sp,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(12.dp))
+        when {
+          state is WhisperDownloadState.Running -> {
+            val progress =
+              if (state.totalBytes > 0) (state.doneBytes.toFloat() / state.totalBytes).coerceIn(0f, 1f) else 0f
+            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(6.dp))
+            Text("Скачиваю: ${state.doneBytes shr 20} из ${state.totalBytes shr 20} МБ. Экран не гаснет до конца.")
+            Spacer(Modifier.height(6.dp))
+            TextButton(onClick = onStop) { Text("Пауза") }
+          }
+          ready -> {
+            Text("✓ Модель скачана: ${WhisperModel.LABEL}", fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Column(modifier = Modifier.weight(1f)) {
+                Text("Быстрый режим", fontSize = 14.sp)
+                Text(
+                  "Обрабатывает только длину фразы, а не 30 с. Быстрее, но может ошибаться чаще.",
+                  fontSize = 12.sp,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+              }
+              Switch(checked = fast, onCheckedChange = onFastChange)
+            }
+            Spacer(Modifier.height(8.dp))
+            TextButton(
+              onClick = {
+                if (confirmDelete) onDelete() else confirmDelete = true
+              }
+            ) {
+              Text(
+                if (confirmDelete) "Точно удалить? Нажми ещё раз" else "Удалить модель",
+                color = MaterialTheme.colorScheme.error,
+              )
+            }
+            if (WhisperLib.ensureLoaded()) {
+              Text(WhisperLib.systemInfo(), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+              Text(
+                "⚠ Whisper не запустился: ${WhisperLib.loadError}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.error,
+              )
+            }
+          }
+          else -> {
+            if (state is WhisperDownloadState.Failed) {
+              Text("⚠ ${state.message}", color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+              Spacer(Modifier.height(6.dp))
+            }
+            if (partialBytes > 0) {
+              Text("Уже скачано ${partialBytes shr 20} из ~${WhisperModel.APPROX_MB} МБ.")
+            } else {
+              Text("Модель: ${WhisperModel.LABEL}, ~${WhisperModel.APPROX_MB} МБ. Лучше качать по Wi-Fi.")
+            }
+            Spacer(Modifier.height(6.dp))
+            TextButton(onClick = onDownload) { Text(if (partialBytes > 0) "Продолжить" else "Скачать") }
+          }
+        }
+      }
+    },
+    confirmButton = { TextButton(onClick = onDismiss) { Text("Закрыть") } },
+  )
 }

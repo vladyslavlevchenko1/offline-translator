@@ -49,6 +49,22 @@ android {
     buildConfigField("String", "FEEDBACK_API_KEY", "\"\"")
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    // Whisper speech recognition (whisper.cpp, see src/main/cpp). Phones only (arm64).
+    externalNativeBuild {
+      cmake {
+        abiFilters += listOf("arm64-v8a")
+        targets += listOf("whisper_jni")
+        arguments += listOf("-DCMAKE_BUILD_TYPE=Release", "-DANDROID_STL=c++_static")
+      }
+    }
+  }
+
+  externalNativeBuild {
+    cmake {
+      path = file("src/main/cpp/CMakeLists.txt")
+      version = "3.22.1"
+    }
   }
 
   signingConfigs {
