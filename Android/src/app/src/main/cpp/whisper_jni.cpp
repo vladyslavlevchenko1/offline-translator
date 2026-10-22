@@ -124,6 +124,89 @@ Java_com_google_ai_edge_gallery_customtasks_translator_WhisperLib_transcribe(
   return result;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Language detection (for the "Авто" direction mode).
+//
+// A separate whisper_state is used only for detection. It is "warmed up" once with a tiny
+// whisper_full() call that sets its encoder window to `audio_ctx` (e.g. 500 = 10 s). Detection
+// calls (pcm_to_mel + lang_auto_detect) never reset that window, so every detection only encodes
+// ~10 s instead of the full 30 s and stays cheap.
+// ---------------------------------------------------------------------------------------------
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_google_ai_edge_gallery_customtasks_translator_WhisperLib_initDetectState(
+    JNIEnv * /*env*/, jobject /*thiz*/, jlong ctx_ptr, jint n_threads, jint audio_ctx) {
+  auto *ctx = reinterpret_cast<whisper_context *>(ctx_ptr);
+  if (ctx == nullptr) return 0;
+  whisper_state *st = whisper_init_state(ctx);
+  if (st == nullptr) {
+    WLOG("failed to init detect state");
+    return 0;
+  }
+  // Warm-up: 1 s of silence, forced language, 1 token max. Sets the state's encoder window.
+  std::vector<float> silence(16000, 0.0f);
+  whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+  params.n_threads = n_threads > 0 ? n_threads : 4;
+  params.language = "en";
+  params.detect_language = false;
+  params.no_context = true;
+  params.no_timestamps = true;
+  params.single_segment = true;
+  params.max_tokens = 1;
+  params.print_special = false;
+  params.print_progress = false;
+  params.print_realtime = false;
+  params.print_timestamps = false;
+  params.audio_ctx = audio_ctx > 0 ? audio_ctx : 0;
+  if (whisper_full_with_state(ctx, st, params, silence.data(), static_cast<int>(silence.size())) != 0) {
+    WLOG("detect state warm-up failed");
+  }
+  return reinterpret_cast<jlong>(st);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_google_ai_edge_gallery_customtasks_translator_WhisperLib_freeState(
+    JNIEnv * /*env*/, jobject /*thiz*/, jlong state_ptr) {
+  auto *st = reinterpret_cast<whisper_state *>(state_ptr);
+  if (st != nullptr) whisper_free_state(st);
+}
+
+// Returns probabilities for every Whisper language (index = whisper language id), or null.
+extern "C" JNIEXPORT jfloatArray JNICALL
+Java_com_google_ai_edge_gallery_customtasks_translator_WhisperLib_detectLanguage(
+    JNIEnv *env, jobject /*thiz*/, jlong ctx_ptr, jlong state_ptr, jfloatArray samples, jint n_threads) {
+  auto *ctx = reinterpret_cast<whisper_context *>(ctx_ptr);
+  auto *st = reinterpret_cast<whisper_state *>(state_ptr);
+  if (ctx == nullptr || st == nullptr) return nullptr;
+
+  const jsize n = env->GetArrayLength(samples);
+  std::vector<float> pcm(static_cast<size_t>(n));
+  if (n > 0) env->GetFloatArrayRegion(samples, 0, n, pcm.data());
+  const int threads = n_threads > 0 ? n_threads : 4;
+
+  if (whisper_pcm_to_mel_with_state(ctx, st, pcm.data(), static_cast<int>(pcm.size()), threads) != 0) {
+    WLOG("detect: mel failed");
+    return nullptr;
+  }
+  const int n_lang = whisper_lang_max_id() + 1;
+  std::vector<float> probs(static_cast<size_t>(n_lang), 0.0f);
+  if (whisper_lang_auto_detect_with_state(ctx, st, 0, threads, probs.data()) < 0) {
+    WLOG("detect: lang_auto_detect failed");
+    return nullptr;
+  }
+  jfloatArray out = env->NewFloatArray(n_lang);
+  if (out != nullptr) env->SetFloatArrayRegion(out, 0, n_lang, probs.data());
+  return out;
+}
+
+// Whisper language id for a code like "ru", "zh"; -1 if unknown.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_google_ai_edge_gallery_customtasks_translator_WhisperLib_langId(
+    JNIEnv *env, jobject /*thiz*/, jstring code) {
+  const std::string c = to_std_string(env, code);
+  return whisper_lang_id(c.c_str());
+}
+
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_google_ai_edge_gallery_customtasks_translator_WhisperLib_systemInfo(
     JNIEnv *env, jobject /*thiz*/) {

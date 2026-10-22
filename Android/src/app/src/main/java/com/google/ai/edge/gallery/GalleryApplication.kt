@@ -32,6 +32,8 @@ class GalleryApplication : Application() {
 
   override fun onCreate() {
     super.onCreate()
+    // Offline Translator: crash / error log (see customtasks/translator/Diagnostics.kt).
+    com.google.ai.edge.gallery.customtasks.translator.TranslatorDiagnostics.install(this)
     // Initialize the notification schedule manager to load the scheduled notifications from the
     // disk.
     notificationScheduleManager.initialize()

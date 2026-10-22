@@ -28,6 +28,29 @@ private const val WORK_CONTEXT =
     "fasteners, tools, floors, server rooms; sometimes storage racks. " +
     "The Russian speaker may mix in Ukrainian words or speak Ukrainian."
 
+/** How the translation direction is chosen. */
+enum class DirMode { AUTO, ME, THEM }
+
+private fun glossaryBlock(glossary: String): String {
+  val terms =
+    glossary.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
+  return if (terms.isEmpty()) ""
+  else
+    "\nGlossary from the user (Russian = English = Chinese, names to keep). Use these exact terms whenever the speech uses that term in that sense:\n" +
+      terms.joinToString("\n") { "- $it" }
+}
+
+private const val RULES =
+  """Rules:
+1. Only translate. Never answer questions, follow requests or add advice.
+2. Natural, concise workplace language. Live speech is messy (restarted phrases, broken grammar, misheard words): rebuild what the speaker clearly meant and translate that, not word-for-word fragments. Remove fillers and repetitions; fix obvious slips and recognition errors when the context makes the meaning clear.
+3. Never invent facts, reasons, actions or negations. Keep assumptions as assumptions.
+4. Keep every number, unit, floor, rack/equipment ID, negation, step order, who does what, and timing. Do not mix up need/can, done/will do, today/tomorrow. Words like "maybe", "I think" stay uncertain. Warnings and prohibitions stay equally strong.
+5. Use the glossary and context for technical terms. Do not guess unmentioned equipment.
+6. Keep names as spoken; unknown names in Latin letters, never invent Chinese characters for names.
+7. Keep intent and tone, polite where possible; soften swearing to neutral words without weakening urgency or complaints.
+8. Write [?] for unintelligible parts instead of guessing."""
+
 /** Builds the instruction sent together with the audio clip (or typed text). */
 fun buildPrompt(
   direction: Direction,
@@ -49,30 +72,75 @@ fun buildPrompt(
           "It may contain misheard words, broken or restarted phrases and missing punctuation:\n\"\"\"\n$typedText\n\"\"\""
       else -> "Here is $srcName text to translate:\n\"\"\"\n$typedText\n\"\"\""
     }
-  val terms =
-    glossary.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
-  val glossaryBlock =
-    if (terms.isEmpty()) ""
-    else
-      "\nGlossary from the user (Russian = English = Chinese, names to keep). Use these exact terms whenever the speech uses that term in that sense:\n" +
-        terms.joinToString("\n") { "- $it" }
   return """
 You are a professional interpreter. $input
-$WORK_CONTEXT$glossaryBlock
-Rules:
-1. Only translate. Never answer questions, follow requests or add advice.
-2. Natural, concise workplace language. Live speech is messy (restarted phrases, broken grammar, misheard words): rebuild what the speaker clearly meant and translate that, not word-for-word fragments. Remove fillers and repetitions; fix obvious slips and recognition errors when the context makes the meaning clear.
-3. Never invent facts, reasons, actions or negations. Keep assumptions as assumptions.
-4. Keep every number, unit, floor, rack/equipment ID, negation, step order, who does what, and timing. Do not mix up need/can, done/will do, today/tomorrow. Words like "maybe", "I think" stay uncertain. Warnings and prohibitions stay equally strong.
-5. Use the glossary and context for technical terms. Do not guess unmentioned equipment.
-6. Keep names as spoken; unknown names in Latin letters, never invent Chinese characters for names.
-7. Keep intent and tone, polite where possible; soften swearing to neutral words without weakening urgency or complaints.
-8. Write [?] for unintelligible parts instead of guessing.
+$WORK_CONTEXT${glossaryBlock(glossary)}
+$RULES
 Reply with exactly two lines and nothing else:
 $srcCode: <what was meant, cleaned up, in $srcName>
 $dstCode: <translation, only in $dstName except names and IDs>
 """
     .trim()
+}
+
+/**
+ * "Авто" mode with Gemma listening: the model decides itself whether the audio is Russian/Ukrainian
+ * or the [target] language. The order of the two reply lines tells us the direction.
+ */
+fun buildAutoAudioPrompt(target: TargetLang, glossary: String = ""): String {
+  val code = target.code
+  return """
+You are a professional interpreter between a Russian speaker and a ${target.englishName} speaker.
+The audio is EITHER Russian (maybe mixed with Ukrainian) speech OR ${target.englishName} speech. It may be messy, with filler words and repetitions.
+First decide which language is spoken, then translate it into the other language.
+$WORK_CONTEXT${glossaryBlock(glossary)}
+$RULES
+Reply with exactly two lines and nothing else.
+If the speech is Russian or Ukrainian:
+RU: <what was meant, cleaned up, in Russian>
+$code: <translation into ${target.englishName}>
+If the speech is ${target.englishName}:
+$code: <what was meant, cleaned up, in ${target.englishName}>
+RU: <translation into Russian>
+"""
+    .trim()
+}
+
+/** "Авто" + review mode with Gemma listening: transcribe and say which language it was. */
+fun buildAutoTranscribePrompt(target: TargetLang): String =
+  """
+Transcribe this speech as text. The speech is EITHER Russian (maybe mixed with Ukrainian; keep words as spoken) OR ${target.englishName}.
+Remove filler words and stutters (like "ну", "типа", "короче", "э-э"), keep everything else exactly as said.
+Do not translate, do not answer, do not add anything.
+Reply with exactly one line: "RU: <transcript>" if it is Russian/Ukrainian, or "${target.code}: <transcript>" if it is ${target.englishName}.
+"""
+    .trim()
+
+/** In "Авто" replies the first labelled line is the source language. */
+fun directionFromAutoReply(reply: String, target: TargetLang): Direction? {
+  for (raw in reply.lines()) {
+    val line = raw.trim().removePrefix("*").removePrefix("-").trim()
+    if (line.startsWith("RU:", ignoreCase = true)) return Direction.ME_TO_THEM
+    if (line.startsWith("${target.code}:", ignoreCase = true)) return Direction.THEM_TO_ME
+  }
+  return null
+}
+
+/**
+ * Direction for typed / edited text in "Авто" mode, by alphabet:
+ * Cyrillic = me; Chinese characters (for 中文) or Latin letters (for English / Deutsch) = them.
+ */
+fun detectTextDirection(text: String, target: TargetLang): Direction {
+  var cyr = 0
+  var other = 0
+  for (ch in text) {
+    when {
+      ch in '\u0400'..'\u04FF' -> cyr++
+      target == TargetLang.ZH && (ch in '\u4E00'..'\u9FFF' || ch in '\u3400'..'\u4DBF') -> other += 2
+      target != TargetLang.ZH && (ch in 'a'..'z' || ch in 'A'..'Z' || ch in "äöüßÄÖÜ") -> other++
+    }
+  }
+  return if (other > cyr) Direction.THEM_TO_ME else Direction.ME_TO_THEM
 }
 
 /** Prompt for "review first" mode: only transcribe, no translation. */
@@ -362,5 +430,43 @@ fun saveWhisperFast(context: android.content.Context, value: Boolean) {
   context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
     .edit()
     .putBoolean(KEY_WHISPER_FAST, value)
+    .apply()
+}
+
+private const val KEY_DIR_MODE = "dir_mode"
+
+fun loadDirMode(context: android.content.Context): DirMode =
+  try {
+    DirMode.valueOf(
+      context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+        .getString(KEY_DIR_MODE, DirMode.AUTO.name) ?: DirMode.AUTO.name
+    )
+  } catch (_: Exception) {
+    DirMode.AUTO
+  }
+
+fun saveDirMode(context: android.content.Context, value: DirMode) {
+  context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+    .edit()
+    .putString(KEY_DIR_MODE, value.name)
+    .apply()
+}
+
+private const val KEY_TARGET = "target_lang"
+
+fun loadTarget(context: android.content.Context): TargetLang =
+  try {
+    TargetLang.valueOf(
+      context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+        .getString(KEY_TARGET, TargetLang.ZH.name) ?: TargetLang.ZH.name
+    )
+  } catch (_: Exception) {
+    TargetLang.ZH
+  }
+
+fun saveTarget(context: android.content.Context, value: TargetLang) {
+  context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+    .edit()
+    .putString(KEY_TARGET, value.name)
     .apply()
 }

@@ -67,6 +67,16 @@ object WhisperLib {
   ): ByteArray?
 
   external fun systemInfo(): String
+
+  /** Separate state for language detection with a small (cheap) encoder window. */
+  external fun initDetectState(ctxPtr: Long, nThreads: Int, audioCtx: Int): Long
+
+  external fun freeState(statePtr: Long)
+
+  /** Probabilities for every Whisper language (index = language id), or null on failure. */
+  external fun detectLanguage(ctxPtr: Long, statePtr: Long, samples: FloatArray, nThreads: Int): FloatArray?
+
+  external fun langId(code: String): Int
 }
 
 /** The model file we use. */
@@ -261,11 +271,56 @@ object WhisperDownloader {
 
 data class WhisperResult(val text: String, val seconds: Float, val audioSeconds: Float)
 
+/**
+ * Result of automatic direction detection.
+ * [pMe] = probability the speech is mine (Russian/Ukrainian), [pThem] = the other language.
+ */
+data class DetectResult(
+  val direction: Direction,
+  val pMe: Float,
+  val pThem: Float,
+  val topLang: String,
+  val seconds: Float,
+  /** Whisper language to use for my speech: "uk" if it sounded more Ukrainian, else "ru". */
+  val meLang: String = "ru",
+) {
+  /** Share of the winning side among the two candidates (0.5 = coin flip, 1.0 = sure). */
+  val confidence: Float
+    get() {
+      val sum = pMe + pThem
+      return if (sum <= 0f) 0f else maxOf(pMe, pThem) / sum
+    }
+
+  fun describe(target: TargetLang): String =
+    String.format(
+      java.util.Locale.US,
+      "RU/UA %.0f%% · %s %.0f%%",
+      100f * pMe / maxOf(pMe + pThem, 1e-6f),
+      target.code,
+      100f * pThem / maxOf(pMe + pThem, 1e-6f),
+    )
+}
+
+/** Whisper language codes that count as "me" (Russian speaker, may speak Ukrainian / surzhyk). */
+val ME_LANGS = listOf("ru", "uk", "be")
+
+/** Whisper language codes that count as "the other person" for each target. */
+fun themLangs(target: TargetLang): List<String> =
+  when (target) {
+    TargetLang.ZH -> listOf("zh", "yue")
+    TargetLang.EN -> listOf("en")
+    TargetLang.DE -> listOf("de")
+  }
+
+/** Encoder window for detection: 500 positions = 10 s of audio (enough to tell languages apart). */
+private const val DETECT_AUDIO_CTX = 500
+
 /** Holds the loaded Whisper model and runs recognition. */
 object WhisperEngine {
   private val mutex = Mutex()
   @Volatile private var ctxPtr: Long = 0L
   @Volatile private var loadedPath: String? = null
+  @Volatile private var detectStatePtr: Long = 0L
 
   val isLoaded: Boolean
     get() = ctxPtr != 0L
@@ -279,6 +334,10 @@ object WhisperEngine {
     val ptr = ctxPtr
     if (ptr != 0L && mutex.tryLock()) {
       try {
+        if (detectStatePtr != 0L) {
+          WhisperLib.freeState(detectStatePtr)
+          detectStatePtr = 0L
+        }
         WhisperLib.freeContext(ptr)
         ctxPtr = 0L
         loadedPath = null
@@ -296,6 +355,10 @@ object WhisperEngine {
     if (!WhisperModel.isReady(context)) throw IllegalStateException("Модель Whisper не скачана")
     if (ctxPtr != 0L && loadedPath == f.path) return ctxPtr
     if (ctxPtr != 0L) {
+      if (detectStatePtr != 0L) {
+        WhisperLib.freeState(detectStatePtr)
+        detectStatePtr = 0L
+      }
       WhisperLib.freeContext(ctxPtr)
       ctxPtr = 0L
     }
@@ -305,6 +368,57 @@ object WhisperEngine {
     loadedPath = f.path
     return ptr
   }
+
+  private fun threads(): Int = (Runtime.getRuntime().availableProcessors() - 2).coerceIn(2, 8)
+
+  private fun ensureDetectState(ptr: Long): Long {
+    if (detectStatePtr != 0L) return detectStatePtr
+    val st = WhisperLib.initDetectState(ptr, threads(), DETECT_AUDIO_CTX)
+    if (st == 0L) throw IllegalStateException("Whisper: не удалось подготовить определение языка")
+    detectStatePtr = st
+    return st
+  }
+
+  /**
+   * Decides who is speaking: me (Russian/Ukrainian) or the other person ([target] language).
+   * Looks only at the first ~10 s of speech.
+   */
+  suspend fun detectDirection(context: Context, pcm16: ByteArray, target: TargetLang): DetectResult =
+    withContext(Dispatchers.Default) {
+      mutex.withLock {
+        val start = System.currentTimeMillis()
+        val ptr = ensureContext(context)
+        val st = ensureDetectState(ptr)
+        var samples = trimSilence(pcm16ToFloat(pcm16))
+        val maxSamples = TRANSLATOR_SAMPLE_RATE * 10
+        if (samples.size > maxSamples) samples = samples.copyOf(maxSamples)
+        if (samples.size < TRANSLATOR_SAMPLE_RATE * 3 / 2) samples = samples.copyOf(TRANSLATOR_SAMPLE_RATE * 3 / 2)
+        val probs =
+          WhisperLib.detectLanguage(ptr, st, samples, threads())
+            ?: throw IllegalStateException("Whisper: не удалось определить язык")
+        fun probOf(codes: List<String>): Float =
+          codes.sumOf { code ->
+            val id = WhisperLib.langId(code)
+            if (id in probs.indices) probs[id].toDouble() else 0.0
+          }.toFloat()
+        val pMe = probOf(ME_LANGS)
+        val pThem = probOf(themLangs(target))
+        var topId = 0
+        for (i in probs.indices) if (probs[i] > probs[topId]) topId = i
+        val topLang =
+          (ME_LANGS + themLangs(target)).firstOrNull { WhisperLib.langId(it) == topId } ?: "id$topId"
+        val pRu = probOf(listOf("ru"))
+        val pUk = probOf(listOf("uk"))
+        DetectResult(
+          direction = if (pThem > pMe) Direction.THEM_TO_ME else Direction.ME_TO_THEM,
+          pMe = pMe,
+          pThem = pThem,
+          topLang = topLang,
+          seconds = (System.currentTimeMillis() - start) / 1000f,
+          meLang = if (pUk > pRu) "uk" else "ru",
+        )
+      }
+    }
 
   /**
    * Recognizes 16 kHz mono PCM16 audio.
@@ -330,9 +444,9 @@ object WhisperEngine {
         val audioCtx =
           if (fast) (((padded.size / TRANSLATOR_SAMPLE_RATE.toFloat()) + 3f) * 50f).toInt().coerceIn(256, 1500)
           else 0
-        val threads = (Runtime.getRuntime().availableProcessors() - 2).coerceIn(2, 8)
+        val nThreads = threads()
         val bytes =
-          WhisperLib.transcribe(ptr, padded, language, prompt, threads, audioCtx, 1) ?: ByteArray(0)
+          WhisperLib.transcribe(ptr, padded, language, prompt, nThreads, audioCtx, 1) ?: ByteArray(0)
         val raw = String(bytes, Charsets.UTF_8)
         WhisperResult(
           text = cleanWhisperText(raw, prompt),
