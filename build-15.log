@@ -1,0 +1,517 @@
+Fetching distribution.
+Downloading https://services.gradle.org/distributions/gradle-9.2.1-bin.zip
+............10%.............20%.............30%.............40%.............50%.............60%.............70%.............80%.............90%.............100%
+
+Welcome to Gradle 9.2.1!
+
+Here are the highlights of this release:
+ - Windows ARM support
+ - Improved publishing APIs
+ - Better guidance for dependency verification failures
+
+For more details see https://docs.gradle.org/9.2.1/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :app
+Checking the license for package NDK (Side by side) 28.2.13676358 in /usr/local/lib/android/sdk/licenses
+License for package NDK (Side by side) 28.2.13676358 accepted.
+Preparing "Install NDK (Side by side) 28.2.13676358 v.28.2.13676358".
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" ready.
+Installing NDK (Side by side) 28.2.13676358 in /usr/local/lib/android/sdk/ndk/28.2.13676358
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" complete.
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" finished.
+WARNING: We recommend using a newer Android Gradle plugin to use compile SDK version 37.0
+
+This Android Gradle plugin (9.0.1) was tested up to compile SDK version 36.1.
+
+You are strongly encouraged to update your project to use a newer
+Android Gradle plugin that has been tested with compile SDK version 37.0.
+
+If you are already using the latest version of the Android Gradle plugin,
+you may need to wait until a newer version with support for compile SDK version 37.0 is available.
+
+For more information refer to the compatibility table:
+https://d.android.com/r/tools/api-level-support
+
+To suppress this warning, add/update
+    android.suppressUnsupportedCompileSdk=37.0
+to this project's gradle.properties.
+Configuration 'releaseRuntimeClasspath' was resolved during configuration time.
+This is a build performance and scalability issue.
+See https://github.com/gradle/gradle/issues/2298
+Run with --info for a stacktrace.
+
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:configureCMakeRelease[arm64-v8a]
+> Task :app:buildCMakeRelease[arm64-v8a][whisper_jni]
+> Task :app:mergeReleaseJniLibFolders
+> Task :app:mergeReleaseNativeLibs
+> Task :app:checkReleaseDuplicateClasses
+> Task :app:generateReleaseBuildConfig
+> Task :app:protobufDummy UP-TO-DATE
+> Task :app:stripReleaseDebugSymbols
+> Task :app:extractIncludeReleaseProto
+> Task :app:extractProto
+> Task :app:extractReleaseProto
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:generateReleaseProto
+> Task :app:generateReleaseResources
+> Task :app:collectReleaseDependencies
+> Task :app:releaseOssDependencyTask
+
+> Task :app:releaseOssLicensesTask
+POM file null for androidx.annotation:annotation does not exist.
+POM file null for androidx.collection:collection does not exist.
+POM file null for androidx.compose:compose-bom does not exist.
+POM file null for androidx.compose.animation:animation does not exist.
+POM file null for androidx.compose.animation:animation-core does not exist.
+POM file null for androidx.compose.material:material-icons-extended does not exist.
+POM file null for androidx.compose.material:material-ripple does not exist.
+POM file null for androidx.compose.runtime:runtime-annotation does not exist.
+POM file null for androidx.compose.runtime:runtime-retain does not exist.
+POM file null for androidx.compose.runtime:runtime-saveable does not exist.
+POM file null for androidx.compose.ui:ui-geometry does not exist.
+POM file null for androidx.compose.ui:ui-graphics does not exist.
+POM file null for androidx.compose.ui:ui-text does not exist.
+POM file null for androidx.compose.ui:ui-tooling-preview does not exist.
+POM file null for androidx.compose.ui:ui-unit does not exist.
+POM file null for androidx.compose.ui:ui-util does not exist.
+POM file null for androidx.datastore:datastore does not exist.
+POM file null for androidx.datastore:datastore-core does not exist.
+POM file null for androidx.datastore:datastore-core-okio does not exist.
+POM file null for androidx.graphics:graphics-shapes does not exist.
+POM file null for androidx.lifecycle:lifecycle-common does not exist.
+POM file null for androidx.lifecycle:lifecycle-runtime does not exist.
+POM file null for androidx.lifecycle:lifecycle-runtime-ktx does not exist.
+POM file null for androidx.lifecycle:lifecycle-viewmodel-savedstate does not exist.
+POM file null for androidx.navigation:navigation-common does not exist.
+POM file null for androidx.navigation:navigation-compose does not exist.
+POM file null for androidx.navigation:navigation-runtime does not exist.
+POM file null for androidx.navigationevent:navigationevent does not exist.
+POM file null for androidx.navigationevent:navigationevent-compose does not exist.
+POM file null for androidx.room:room-common does not exist.
+POM file null for androidx.room:room-runtime does not exist.
+POM file null for androidx.savedstate:savedstate does not exist.
+POM file null for androidx.savedstate:savedstate-compose does not exist.
+POM file null for androidx.sqlite:sqlite does not exist.
+POM file null for androidx.sqlite:sqlite-framework does not exist.
+POM file null for androidx.window:window-core does not exist.
+POM file null for com.google.firebase:firebase-bom does not exist.
+Unable to find Google Play Services Artifact for com.google.firebase:firebase-bom:33.16.0
+POM file null for com.halilibo.compose-richtext:richtext-commonmark does not exist.
+POM file null for com.halilibo.compose-richtext:richtext-markdown does not exist.
+POM file null for com.halilibo.compose-richtext:richtext-ui does not exist.
+POM file null for com.halilibo.compose-richtext:richtext-ui-material3 does not exist.
+POM file null for com.squareup.okio:okio does not exist.
+POM file null for io.github.oshai:kotlin-logging does not exist.
+POM file null for io.ktor:ktor-client-android does not exist.
+POM file null for io.ktor:ktor-client-core does not exist.
+POM file null for io.ktor:ktor-events does not exist.
+POM file null for io.ktor:ktor-http does not exist.
+POM file null for io.ktor:ktor-http-cio does not exist.
+POM file null for io.ktor:ktor-io does not exist.
+POM file null for io.ktor:ktor-network does not exist.
+POM file null for io.ktor:ktor-serialization does not exist.
+POM file null for io.ktor:ktor-server-core does not exist.
+POM file null for io.ktor:ktor-server-sse does not exist.
+POM file null for io.ktor:ktor-server-websockets does not exist.
+POM file null for io.ktor:ktor-sse does not exist.
+POM file null for io.ktor:ktor-utils does not exist.
+POM file null for io.ktor:ktor-websocket-serialization does not exist.
+POM file null for io.ktor:ktor-websockets does not exist.
+POM file null for io.modelcontextprotocol:kotlin-sdk does not exist.
+POM file null for io.modelcontextprotocol:kotlin-sdk-client does not exist.
+POM file null for io.modelcontextprotocol:kotlin-sdk-core does not exist.
+POM file null for io.modelcontextprotocol:kotlin-sdk-server does not exist.
+POM file null for org.jetbrains.androidx.lifecycle:lifecycle-common does not exist.
+POM file null for org.jetbrains.androidx.lifecycle:lifecycle-runtime does not exist.
+POM file null for org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose does not exist.
+POM file null for org.jetbrains.androidx.lifecycle:lifecycle-viewmodel does not exist.
+POM file null for org.jetbrains.androidx.savedstate:savedstate does not exist.
+POM file null for org.jetbrains.androidx.savedstate:savedstate-compose does not exist.
+POM file null for org.jetbrains.compose.animation:animation does not exist.
+POM file null for org.jetbrains.compose.animation:animation-core does not exist.
+POM file null for org.jetbrains.compose.annotation-internal:annotation does not exist.
+POM file null for org.jetbrains.compose.collection-internal:collection does not exist.
+POM file null for org.jetbrains.compose.foundation:foundation does not exist.
+POM file null for org.jetbrains.compose.foundation:foundation-layout does not exist.
+POM file null for org.jetbrains.compose.material:material-icons-core does not exist.
+POM file null for org.jetbrains.compose.material:material-ripple does not exist.
+POM file null for org.jetbrains.compose.material3:material3 does not exist.
+POM file null for org.jetbrains.compose.runtime:runtime does not exist.
+POM file null for org.jetbrains.compose.runtime:runtime-saveable does not exist.
+POM file null for org.jetbrains.compose.ui:ui does not exist.
+POM file null for org.jetbrains.compose.ui:ui-geometry does not exist.
+POM file null for org.jetbrains.compose.ui:ui-graphics does not exist.
+POM file null for org.jetbrains.compose.ui:ui-text does not exist.
+POM file null for org.jetbrains.compose.ui:ui-unit does not exist.
+POM file null for org.jetbrains.compose.ui:ui-util does not exist.
+POM file null for org.jetbrains.kotlin:kotlin-bom does not exist.
+POM file null for org.jetbrains.kotlin:kotlin-stdlib-common does not exist.
+POM file null for org.jetbrains.kotlinx:atomicfu does not exist.
+POM file null for org.jetbrains.kotlinx:kotlinx-collections-immutable does not exist.
+POM file null for org.jetbrains.kotlinx:kotlinx-coroutines-bom does not exist.
+POM file null for org.jetbrains.kotlinx:kotlinx-coroutines-core does not exist.
+POM file null for org.jetbrains.kotlinx:kotlinx-io-bytestring does not exist.
+POM file null for org.jetbrains.kotlinx:kotlinx-io-core does not exist.
+POM file null for org.jetbrains.kotlinx:kotlinx-serialization-bom does not exist.
+POM file null for org.jetbrains.kotlinx:kotlinx-serialization-core does not exist.
+POM file null for org.jetbrains.kotlinx:kotlinx-serialization-json does not exist.
+
+> Task :app:packageReleaseResources
+> Task :app:processReleaseNavigationResources
+> Task :app:mergeReleaseNativeDebugMetadata
+> Task :app:parseReleaseLocalResources
+> Task :app:javaPreCompileRelease
+> Task :app:generateReleaseRFile
+> Task :app:checkReleaseAarMetadata
+> Task :app:compileReleaseNavigationResources
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
+
+> Task :app:processReleaseMainManifest
+package="com.google.ai.edge.gallery" found in source AndroidManifest.xml: /home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.google.ai.edge.gallery" from the source AndroidManifest.xml: /home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/AndroidManifest.xml.
+
+> Task :app:processReleaseManifest
+> Task :app:desugarReleaseFileDependencies
+> Task :app:mergeReleaseStartupProfile
+> Task :app:mergeReleaseResources
+> Task :app:kspReleaseKotlin
+> Task :app:processReleaseManifestForPackage
+> Task :app:mergeExtDexRelease
+> Task :app:mergeReleaseArtProfile
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:processReleaseResources
+> Task :app:mergeReleaseAssets
+> Task :app:compressReleaseAssets
+> Task :app:extractReleaseVersionControlInfo
+> Task :app:extractProguardFiles
+> Task :app:sdkReleaseDependencyData
+> Task :app:validateSigningRelease
+> Task :app:writeReleaseAppMetadata
+> Task :app:writeReleaseSigningConfigVersions
+> Task :app:optimizeReleaseResources
+> Task :app:compileReleaseKotlin
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/MainActivity.kt:90:66 'fun get(p0: String!): Any?' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/MainActivity.kt:204:69 'fun get(p0: String!): Any?' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/agent/sessions/DefaultLlmSessionManager.kt:70:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/agent/sessions/DefaultLlmSessionManager.kt:73:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/agentchat/AgentChatTaskModule.kt:127:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/agentchat/AgentChatTaskModule.kt:130:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/agentchat/SkillManagerBottomSheet.kt:133:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/agentchat/SkillManagerBottomSheet.kt:134:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/examplecustomtask/ExampleCustomTaskScreen.kt:112:43 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/mobileactions/MobileActionsScreen.kt:139:27 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/mobileactions/MobileActionsScreen.kt:175:37 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/mobileactions/MobileActionsScreen.kt:205:24 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/mobileactions/MobileActionsTask.kt:46:45 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/mobileactions/MobileActionsViewModel.kt:75:13 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/scrapbook/ColoredBackgroundEditor.kt:81:30 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/scrapbook/CutoutEditor.kt:131:30 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/scrapbook/CutoutEditor.kt:147:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/scrapbook/CutoutEditor.kt:171:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/scrapbook/CutoutEditor.kt:172:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/scrapbook/CutoutEditor.kt:199:33 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/scrapbook/ScrapbookScreen.kt:81:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/scrapbook/ScrapbookScreen.kt:83:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/scrapbook/ScrapbookViewModel.kt:263:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/scrapbook/ScrapbookViewModel.kt:289:19 This declaration is in a preview state and can be changed in a backwards-incompatible manner with a best-effort migration. Its usage should be marked with '@kotlinx.coroutines.FlowPreview' or '@OptIn(kotlinx.coroutines.FlowPreview::class)' if you accept the drawback of relying on preview API
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/scrapbook/ScrapbookViewModel.kt:294:23 This declaration is in a preview state and can be changed in a backwards-incompatible manner with a best-effort migration. Its usage should be marked with '@kotlinx.coroutines.FlowPreview' or '@OptIn(kotlinx.coroutines.FlowPreview::class)' if you accept the drawback of relying on preview API
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/smartalbum/SmartAlbumSearchViewModel.kt:134:8 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/smartalbum/SmartAlbumTask.kt:64:42 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/tinygarden/TinyGardenTask.kt:71:42 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/tinygarden/TinyGardenViewModel.kt:68:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/videomomentfinder/VideoMomentFinderTask.kt:38:49 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/videomomentfinder/VideoMomentFinderViewModel.kt:171:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/customtasks/videomomentfinder/VideoMomentFinderViewModel.kt:172:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/data/Categories.kt:33:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/data/Config.kt:57:57 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/data/Config.kt:266:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/data/Config.kt:296:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/data/DownloadRepository.kt:275:32 The corresponding parameter in the supertype 'Observer' is named 'value'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/data/Tasks.kt:129:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/data/Tasks.kt:132:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/huggingface/HuggingFaceApiClient.kt:43:13 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/notifications/NotificationScheduleManager.kt:48:13 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/services/semanticretrieval/OnDeviceEmbedder.kt:270:7 'when' is exhaustive so 'else' is redundant here.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/skills/SkillManager.kt:82:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/common/DownloadAndTryButton.kt:176:12 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/common/EmptyState.kt:40:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/common/chat/ChatMessage.kt:118:26 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/common/onboarding/OnboardingPageInfo.kt:36:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/common/onboarding/OnboardingPageInfo.kt:37:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/common/onboarding/OnboardingPageInfo.kt:38:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/common/textandvoiceinput/HoldToDictateViewModel.kt:48:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/home/SettingsDialog.kt:19:8 'class OssLicensesMenuActivity : AppCompatActivity' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/home/SettingsDialog.kt:346:46 'class OssLicensesMenuActivity : AppCompatActivity' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmchat/LlmChatModelHelper.kt:135:9 'when' is exhaustive so 'else' is redundant here.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmchat/LlmChatScreen.kt:84:33 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmchat/LlmChatScreen.kt:128:37 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmchat/LlmChatScreen.kt:182:37 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmchat/LlmChatTaskModule.kt:253:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmchat/LlmChatTaskModule.kt:254:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmchat/LlmChatTaskModule.kt:348:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmchat/LlmChatTaskModule.kt:349:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmchat/LlmChatViewModel.kt:119:10 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmsingleturn/LlmSingleTurnScreen.kt:71:39 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmsingleturn/LlmSingleTurnTaskModule.kt:41:45 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmsingleturn/PromptTemplateConfigs.kt:32:45 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmsingleturn/PromptTemplateConfigs.kt:43:47 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmsingleturn/PromptTemplateConfigs.kt:79:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmsingleturn/PromptTemplateConfigs.kt:85:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmsingleturn/PromptTemplateConfigs.kt:93:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmsingleturn/PromptTemplateConfigs.kt:113:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/modelmanager/HfExploreScreen.kt:101:35 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/modelmanager/HfExploreViewModel.kt:61:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/offline-translator/offline-translator/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/modelmanager/ModelManagerViewModel.kt:234:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+
+> Task :app:compileReleaseJavaWithJavac
+> Task :app:hiltCollectClassesRelease
+> Task :app:hiltAggregateDepsRelease
+> Task :app:generateReleaseLintVitalReportModel
+
+> Task :app:hiltJavaCompileRelease
+warning: Kapt support in Moshi Kotlin Code Gen is deprecated and will be removed in 2.0. Please migrate to KSP. https://github.com/square/moshi#codegen
+1 warning
+
+> Task :app:transformReleaseClassesWithAsm
+> Task :app:dexBuilderRelease
+> Task :app:mergeReleaseGlobalSynthetics
+> Task :app:processReleaseJavaRes
+> Task :app:lintVitalAnalyzeRelease
+> Task :app:mergeReleaseJavaResource
+> Task :app:mergeDexRelease
+> Task :app:compileReleaseArtProfile
+> Task :app:lintVitalReportRelease
+> Task :app:lintVitalRelease
+> Task :app:packageRelease
+> Task :app:createReleaseApkListingFileRedirect
+> Task :app:assembleRelease
+
+[Incubating] Problems report is available at: file:///home/runner/work/offline-translator/offline-translator/Android/src/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 5m 40s
+63 actionable tasks: 63 executed
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.2.1/userguide/configuration_cache_enabling.html
